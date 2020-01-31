@@ -142,13 +142,13 @@ git clone https://github.com/SimplyVC/panic_polkadot
 Then run the following commands to build each of the required images:
 ```bash
 cd panic_polkadot/api
-docker build -t simplyvc/polkadot_api_server:1.0.0 .
+docker build -t simplyvc/polkadot_api_server:1.0.1 .
 ```
 
 ##### Downloading the Pre-Built Docker Image from DockerHub
 The pre-built Docker container can simply be downloaded by running the following commands:
 ```bash
-docker pull simplyvc/polkadot_api_server:1.0.0
+docker pull simplyvc/polkadot_api_server:1.0.1
 ```
 
 #### Config Files Directory and Permissions
@@ -169,7 +169,7 @@ Now that the Docker image is on your machine, and you have written configuration
 ```bash
 docker run -p 3000:3000 \
     -v <CONFIG_DIR>:/opt/polkadot_api_server/config:ro \
-    -d simplyvc/polkadot_api_server:1.0.0
+    -d simplyvc/polkadot_api_server:1.0.1
 ```
 
 Note: The port after `-p` and before the `:` can be used to route a port from the machine to the internal port of the Docker. If changing this, any program which refers to the API Docker container must refer to this port.\
