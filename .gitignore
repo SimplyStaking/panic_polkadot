@@ -1,16 +1,13 @@
 .idea/
 __pycache__/
-api/node_modules/
 
-alerter/logs/*.log*
-alerter/logs/*/*.log*
-!alerter/logs/alerts/.gitkeep
-!alerter/logs/general/.gitkeep
+logs/*.log*
+logs/*/*.log*
+!logs/alerts/.gitkeep
+!logs/general/.gitkeep
 
-alerter/config/user_config_main.ini
-alerter/config/user_config_nodes.ini
-alerter/config/user_config_repos.ini
-api/config/user_config_main.ini
-api/config/user_config_nodes.ini
+config/user_config_main.ini
+config/user_config_nodes.ini
+config/user_config_repos.ini
 
 .coverage

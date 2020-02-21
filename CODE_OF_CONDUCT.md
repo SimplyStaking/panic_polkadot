@@ -50,4 +50,4 @@ available at https://www.contributor-covenant.org/version/1/4/code-of-conduct.ht
 [homepage]: https://www.contributor-covenant.org
 
 ---
-[Back to contributing guidelines page](./CONTRIBUTING.md)
+[Back to contributing guidelines page](CONTRIBUTING.md)

@@ -1,10 +1,10 @@
 import sys
 
-from alerter.src.utils.config_parsers.internal_parsed import InternalConf
-from alerter.src.utils.config_parsers.user_parsed import UserConf
-from alerter.src.utils.exceptions import InitialisationException
-from alerter.src.utils.logging import create_logger
-from alerter.src.utils.redis_api import RedisApi
+from src.utils.config_parsers.internal_parsed import InternalConf
+from src.utils.config_parsers.user_parsed import UserConf
+from src.utils.exceptions import InitialisationException
+from src.utils.logging import create_logger
+from src.utils.redis_api import RedisApi
 
 
 def run() -> None:

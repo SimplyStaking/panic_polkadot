@@ -1,6 +1,6 @@
 # Contributing guidelines
 
-We welcome any kind of contribution to our software, from simple comment or question to a full fledged [pull request](https://help.github.com/articles/about-pull-requests/). Please read and follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
+We welcome any kind of contribution to our software, from simple comment or question to a full fledged [pull request](https://help.github.com/articles/about-pull-requests/). Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 A contribution can be one of the following cases:
 
@@ -43,4 +43,4 @@ In case you feel like you've made a valuable contribution, but you don't know ho
 Contribution guidelines adapted from [python-template](https://github.com/NLeSC/python-template).
 
 ---
-[Back to front page](./README.md)
+[Back to front page](README.md)

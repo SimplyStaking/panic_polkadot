@@ -1,6 +1,6 @@
 # PANIC for Polkadot
 
-<img src="./alerter/doc/IMG_PANIC.png" alt="design" width="600"/>
+<img src="doc/IMG_PANIC.png" alt="design" width="600"/>
 
 PANIC for [Polkadot](https://polkadot.network/) is a lightweight yet powerful open source monitoring and alerting solution for Polkadot nodes by [Simply VC](https://simply-vc.com.mt/). It is compatible with any [Substrate](https://www.parity.io/substrate/) based chain provided that it is injected with the default types (latest Polkadot and Substrate master types). The tool was built with user friendliness in mind, without excluding cool and useful features like phone calls for critical alerts and Telegram commands for increased control over your alerter.
 
@@ -10,11 +10,11 @@ We are sure that PANIC will be beneficial for node operators in the Polkadot com
 
 ## Design and Features
 
-To be able to monitor and alert, PANIC was designed to retrieve data from Polkadot nodes using a custom-built JavaScript (JS) API. The JS API is an intermediate component which interacts with the Polkadot nodes via the [polkadot-js/api](https://polkadot.js.org/api/). For more details on the JS API please [read this](api/README.md). If you want to dive into the design and feature set of PANIC [click here](alerter/doc/DESIGN_AND_FEATURES.md).
+To be able to monitor and alert, PANIC was designed to retrieve data from Polkadot nodes using a custom-built [Polkadot API Server](https://github.com/SimplyVC/polkadot_api_server). The API Server is an intermediate component which interacts with the Polkadot nodes via the [polkadot-js/api](https://polkadot.js.org/api/). For more details on the API Server please refer to the [Polkadot API Server repository](https://github.com/SimplyVC/polkadot_api_server). If you want to dive into the design and feature set of PANIC [click here](doc/DESIGN_AND_FEATURES.md).
 
 ## Ready, Set, Alert!
 
-PANIC is highly dependent on the JS API for correct execution. Therefore, if you are ready to try out PANIC on your Polkadot nodes, you should first setup and run the JS API on **ALL** nodes you want to monitor using [this guide](api/doc/INSTALL_AND_RUN.md). After the JS API is successfully running, you should set up and run the alerter using [this guide](alerter/doc/INSTALL_AND_RUN.md).
+PANIC is highly dependent on the [Polkadot API Server](https://github.com/SimplyVC/polkadot_api_server) for correct execution. Therefore, if you are ready to try out PANIC on your Polkadot nodes, you should first setup and run the API Server, and connect it to **ALL** nodes you want to monitor using the guides found inside the [Polkadot API Server repository](https://github.com/SimplyVC/polkadot_api_server). After the API Server is successfully running, you should set up and run the alerter using [this guide](doc/INSTALL_AND_RUN.md).
 
 ## Support and Contribution
 

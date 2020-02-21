@@ -1,8 +1,8 @@
-from alerter.src.utils.exceptions import ConfigNotFoundException
+from src.utils.exceptions import ConfigNotFoundException
 
 if __name__ == '__main__':
     try:
-        from alerter.src.utils.config_parsers.internal_parsed import \
+        from src.utils.config_parsers.internal_parsed import \
             InternalConf, \
             INTERNAL_CONFIG_FILE_FOUND, INTERNAL_CONFIG_FILE
 
@@ -16,7 +16,7 @@ if __name__ == '__main__':
         print('Internal configuration has missing section/key:', ke)
 
     try:
-        from alerter.src.utils.config_parsers.user_parsed import UserConf, \
+        from src.utils.config_parsers.user_parsed import UserConf, \
             MISSING_USER_CONFIG_FILES
 
         if len(MISSING_USER_CONFIG_FILES) == 0:
