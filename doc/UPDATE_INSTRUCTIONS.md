@@ -2,10 +2,17 @@
 
 To update an instance of PANIC to this version, run these commands inside the project directory:
 ```bash
-git fetch                                                       # Fetch these changes
-git checkout v2.0.0                                             # Switch to this version
+git fetch                # Fetch these changes
+git checkout v2.0.0      # Switch to this version
 
-pipenv sync                                                     # Update dependencies
+# At this stage, you should stop PANIC
+
+pipenv sync              # Update dependencies
+```
+
+Given the recent overhaul of how PANIC uses Redis, we highly recommend clearing up Redis by running the `run_util_reset_redis.py` script using this command:
+```bash
+pipenv run python run_util_reset_redis.py         # Reset redis. Replace 'python' with 'python3' if the latter was installed
 ```
 
 ## Alerter
