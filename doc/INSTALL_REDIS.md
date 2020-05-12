@@ -4,8 +4,11 @@ Before installing Redis, we recommend that you read through the [security model 
 
 ## Installation
 
-You can either install Redis directly on your system or use Docker. 
+You can either install Redis directly on your system or use Docker.
+
 The former contains extra optional steps to reconfigure and secure Redis which are also useful if you choose the latter approach.
+
+If you are willing to **run PANIC using docker**, it is very important to install Redis using docker. If this is the case, the docker installation of Redis will be done at a later stage during the installation process. 
 
 ### Installing Directly to System
 
@@ -37,20 +40,6 @@ The former contains extra optional steps to reconfigure and secure Redis which a
     - On Windows, `redis-cli.exe` is found in the installation directory.
     - To use Redis via the `redis-cli`, remember to authenticate using your password: `AUTH <PASSWORD>`.
     - Note that you do not have to have the *cli* running for the alerter to work.
-
-### Installing using Docker
-
-To install and run Redis server on your system:
-
-```bash
-docker run -p 6379:6379 -d redis
-```
-
-To make sure that Redis is running:
-
-```bash
-docker ps
-```
 
 ## References and Further Reading:
 - <https://redis.io/topics/security>

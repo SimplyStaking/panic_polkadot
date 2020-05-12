@@ -4,10 +4,11 @@ from typing import Optional
 from src.alerts.alerts import NewGitHubReleaseAlert
 from src.channels.channel import ChannelSet
 from src.monitors.monitor import Monitor
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.get_json import get_json
-from src.utils.redis_api import RedisApi
 
 
 class GitHubMonitor(Monitor):
@@ -15,16 +16,11 @@ class GitHubMonitor(Monitor):
     def __init__(self, monitor_name: str, channels: ChannelSet,
                  logger: logging.Logger, redis: Optional[RedisApi],
                  repo_name: str, releases_page: str,
-                 redis_github_releases_key_prefix: str,
                  internal_conf: InternalConfig = InternalConf):
         super().__init__(monitor_name, channels, logger, redis, internal_conf)
 
         self.repo_name = repo_name
         self.releases_page = releases_page
-
-        # The repo name is suffixed for uniqueness of key names in Redis
-        self._redis_github_releases_key = \
-            redis_github_releases_key_prefix + repo_name
 
         self._prev_no_of_releases = None
 
@@ -33,12 +29,10 @@ class GitHubMonitor(Monitor):
     def load_state(self) -> None:
         # If Redis is enabled, restore any previously stored number of releases
         if self.redis_enabled:
-            self._prev_no_of_releases = self.redis.get_int(
-                self._redis_github_releases_key, None)
-
-            self.logger.debug(
-                'Restored github monitor state: %s=%s',
-                self._redis_github_releases_key, self._prev_no_of_releases)
+            key = Keys.get_github_releases(self.repo_name)
+            self._prev_no_of_releases = self.redis.get_int(key, None)
+            self.logger.debug('Restored github monitor state: %s=%s',
+                              key, self._prev_no_of_releases)
 
     def save_state(self) -> None:
         # If Redis is enabled, save the currently known number of releases
@@ -48,11 +42,10 @@ class GitHubMonitor(Monitor):
                                   'due to None previous number of releases.')
                 return
 
-            self.logger.debug(
-                'Saving github monitor state: %s=%s',
-                self._redis_github_releases_key, self._prev_no_of_releases)
-            self.redis.set(
-                self._redis_github_releases_key, self._prev_no_of_releases)
+            key = Keys.get_github_releases(self.repo_name)
+            self.logger.debug('Saving github monitor state: %s=%s',
+                              key, self._prev_no_of_releases)
+            self.redis.set(key, self._prev_no_of_releases)
 
     def monitor(self) -> None:
         # Get list of releases

@@ -8,11 +8,11 @@ from unittest.mock import patch
 from redis import ConnectionError as RedisConnectionError, DataError, \
     AuthenticationError
 
-from src.utils.redis_api import RedisApi
+from src.store.redis.redis_api import RedisApi
 from test import TestInternalConf, TestUserConf
 
 REDIS_RECENTLY_DOWN_FUNCTION = \
-    'src.utils.redis_api.RedisApi._do_not_use_if_recently_went_down'
+    'src.store.redis.redis_api.RedisApi._do_not_use_if_recently_went_down'
 
 
 class TestRedisApiWithRedisOnline(unittest.TestCase):
@@ -99,6 +99,33 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         except DataError:
             pass
 
+    def test_hset_unsafe_throws_exception_if_incorrect_password(self):
+        redis_bad_pass = RedisApi(self.logger, self.db, self.host, self.port,
+                                  password='incorrect password',
+                                  namespace=self.namespace)
+
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)  # works
+        try:
+            redis_bad_pass.hset_unsafe(hash_name, self.key1, self.val1)
+            self.fail('Expected AuthenticationError to be thrown')
+        except AuthenticationError:
+            pass
+
+    def test_hset_unsafe_sets_the_specified_key_to_the_specified_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+        self.assertEqual(self.redis.hget_unsafe(hash_name, self.key1),
+                         self.val1_bytes)
+
+    def test_hset_unsafe_throws_exception_if_invalid_type(self):
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hset_unsafe(hash_name, self.key1, True)
+            self.fail('Expected DataError exception to be thrown.')
+        except DataError:
+            pass
+
     def test_set_multiple_unsafe_sets_multiple_key_value_pairs(self):
         self.redis.set_multiple_unsafe({
             self.key1: self.val1,
@@ -106,6 +133,17 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         })
         self.assertEqual(self.redis.get_unsafe(self.key1), self.val1_bytes)
         self.assertEqual(self.redis.get_unsafe(self.key2), self.val2_bytes)
+
+    def test_hset_multiple_unsafe_sets_multiple_key_value_pairs(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_multiple_unsafe(hash_name, {
+            self.key1: self.val1,
+            self.key2: self.val2
+        })
+        self.assertEqual(self.redis.hget_unsafe(hash_name, self.key1),
+                         self.val1_bytes)
+        self.assertEqual(self.redis.hget_unsafe(hash_name, self.key2),
+                         self.val2_bytes)
 
     def test_set_for_unsafe_temporarily_sets_specified_key_value_pair(self):
         self.redis.set_for_unsafe(self.key1, self.val1, self.time)
@@ -145,6 +183,28 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         self.assertIsNone(
             self.redis.get_unsafe(self.key1, default=self.default_str))
 
+    def test_hget_unsafe_returns_default_for_unset_key(self):
+        hash_name = "dummy_hash"
+        self.assertEqual(
+            self.redis.hget_unsafe(hash_name, self.key1,
+                                   default=self.default_str),
+            self.default_str)
+
+    def test_hget_unsafe_returns_set_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+        self.assertEqual(
+            self.redis.hget_unsafe(hash_name, self.key1,
+                                   default=self.default_str),
+            self.val1_bytes)
+
+    def test_hget_unsafe_returns_none_for_none_string(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, 'None')
+        self.assertIsNone(
+            self.redis.hget_unsafe(hash_name, self.key1,
+                                   default=self.default_str))
+
     def test_get_int_unsafe_returns_set_integer(self):
         self.redis.set_unsafe(self.key3, self.val3_int)
         self.assertEqual(
@@ -160,6 +220,29 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         self.redis.set_unsafe(self.key2, self.val2)
         self.assertEqual(
             self.redis.get_int_unsafe(self.key2, default=self.default_int),
+            self.default_int)
+
+    def test_hget_int_unsafe_returns_set_integer(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key3, self.val3_int)
+        self.assertEqual(
+            self.redis.hget_int_unsafe(hash_name, self.key3,
+                                       default=self.default_int),
+            self.val3_int)
+
+    def test_hget_int_unsafe_returns_default_for_unset_key(self):
+        hash_name = "dummy_hash"
+        self.assertEqual(
+            self.redis.hget_int_unsafe(hash_name, self.key3,
+                                       default=self.default_int),
+            self.default_int)
+
+    def test_hget_int_unsafe_returns_default_for_non_integer_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key2, self.val2)
+        self.assertEqual(
+            self.redis.hget_int_unsafe(hash_name, self.key2,
+                                       default=self.default_int),
             self.default_int)
 
     def test_get_bool_unsafe_returns_set_boolean(self):
@@ -178,12 +261,43 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         self.assertFalse(
             self.redis.get_bool_unsafe(self.key1, default=self.default_bool))
 
+    def test_hget_bool_unsafe_returns_set_boolean(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key4, self.val4)
+        self.assertEqual(
+            self.redis.hget_bool_unsafe(hash_name, self.key4,
+                                        default=self.default_bool),
+            self.val4_bool)
+
+    def test_hget_bool_unsafe_returns_default_for_unset_key(self):
+        hash_name = "dummy_hash"
+        self.assertEqual(
+            self.redis.hget_bool_unsafe(hash_name, self.key4,
+                                        default=self.default_bool),
+            self.default_bool)
+
+    def test_hget_bool_unsafe_returns_false_for_non_boolean_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+        self.assertFalse(
+            self.redis.hget_bool_unsafe(hash_name, self.key1,
+                                        default=self.default_bool))
+
     def test_exists_unsafe_returns_true_if_exists(self):
         self.redis.set_unsafe(self.key1, self.val1)
         self.assertTrue(self.redis.exists_unsafe(self.key1))
 
     def test_exists_unsafe_returns_false_if_not_exists(self):
         self.assertFalse(self.redis.exists_unsafe(self.key1))
+
+    def test_hexists_unsafe_returns_true_if_exists(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+        self.assertTrue(self.redis.hexists_unsafe(hash_name, self.key1))
+
+    def test_hexists_unsafe_returns_false_if_not_exists(self):
+        hash_name = "dummy_hash"
+        self.assertFalse(self.redis.hexists_unsafe(hash_name, self.key1))
 
     def test_get_keys_unsafe_returns_empty_list_if_no_keys(self):
         keys_list = self.redis.get_keys_unsafe()
@@ -253,6 +367,26 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
     def test_set_returns_none_if_invalid_type(self):
         self.assertIsNone(self.redis.set(self.key1, True))
 
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_set_returns_none_if_redis_down(self, _):
+        self.assertIsNone(self.redis.set(self.key1, self.val1))
+        self.assertFalse(self.redis.exists_unsafe(self.key1))
+
+    def test_hset_sets_the_specified_key_to_the_specified_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key1, self.val1)
+        self.assertEqual(self.redis.hget(hash_name, self.key1), self.val1_bytes)
+
+    def test_hset_returns_none_if_invalid_type(self):
+        hash_name = "dummy_hash"
+        self.assertIsNone(self.redis.hset(hash_name, self.key1, True))
+
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_hset_returns_none_if_redis_down(self, _):
+        hash_name = "dummy_hash"
+        self.assertIsNone(self.redis.hset(hash_name, self.key1, self.val1))
+        self.assertFalse(self.redis.hexists_unsafe(hash_name, self.key1))
+
     def test_set_multiple_sets_multiple_key_value_pairs(self):
         self.redis.set_multiple({
             self.key1: self.val1,
@@ -269,6 +403,25 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         }))
         self.assertFalse(self.redis.exists_unsafe(self.key1))
         self.assertFalse(self.redis.exists_unsafe(self.key2))
+
+    def test_hset_multiple_sets_multiple_key_value_pairs(self):
+        hash_name = "dummy_hahh"
+        self.redis.hset_multiple(hash_name, {
+            self.key1: self.val1,
+            self.key2: self.val2
+        })
+        self.assertEqual(self.redis.hget(hash_name, self.key1), self.val1_bytes)
+        self.assertEqual(self.redis.hget(hash_name, self.key2), self.val2_bytes)
+
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_hset_multiple_returns_none_and_nothing_set_if_redis_down(self, _):
+        hash_name = "dummy_dash"
+        self.assertIsNone(self.redis.hset_multiple(hash_name, {
+            self.key1: self.val1,
+            self.key2: self.val2
+        }))
+        self.assertFalse(self.redis.hexists_unsafe(hash_name, self.key1))
+        self.assertFalse(self.redis.hexists_unsafe(hash_name, self.key2))
 
     def test_set_for_temporarily_sets_specified_key_value_pair(self):
         self.redis.set_for(self.key1, self.val1, self.time)
@@ -310,6 +463,33 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         self.assertEqual(self.redis.get(self.key1, default=self.default_str),
                          self.default_str)
 
+    def test_hget_returns_default_for_unset_key(self):
+        hash_name = "dummy_hash"
+        self.assertEqual(
+            self.redis.hget(hash_name, self.key1, default=self.default_str),
+            self.default_str)
+
+    def test_hget_returns_set_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key1, self.val1)
+        self.assertEqual(
+            self.redis.hget(hash_name, self.key1, default=self.default_str),
+            self.val1_bytes)
+
+    def test_hget_returns_none_for_none_string(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key1, 'None')
+        self.assertIsNone(
+            self.redis.hget(hash_name, self.key1, default=self.default_str))
+
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_hget_returns_default_if_redis_down(self, _):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+        self.assertEqual(
+            self.redis.hget(hash_name, self.key1, default=self.default_str),
+            self.default_str)
+
     def test_get_int_returns_set_integer(self):
         self.redis.set(self.key3, self.val3_int)
         self.assertEqual(
@@ -332,6 +512,34 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
         self.redis.set_unsafe(self.key3, self.val3_int)
         self.assertEqual(
             self.redis.get_int(self.key3, default=self.default_int),
+            self.default_int)
+
+    def test_hget_int_returns_set_integer(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key3, self.val3_int)
+        self.assertEqual(
+            self.redis.hget_int(hash_name, self.key3, default=self.default_int),
+            self.val3_int)
+
+    def test_hget_int_returns_default_for_unset_key(self):
+        hash_name = "dummy_hash"
+        self.assertEqual(
+            self.redis.hget_int(hash_name, self.key3, default=self.default_int),
+            self.default_int)
+
+    def test_hget_int_returns_default_for_non_integer_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key2, self.val2)
+        self.assertEqual(
+            self.redis.hget_int(hash_name, self.key2, default=self.default_int),
+            self.default_int)
+
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_hget_int_returns_default_if_redis_down(self, _):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key3, self.val3_int)
+        self.assertEqual(
+            self.redis.hget_int(hash_name, self.key3, default=self.default_int),
             self.default_int)
 
     def test_get_bool_returns_set_boolean(self):
@@ -357,6 +565,33 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
             self.redis.get_bool(self.key4, default=self.default_bool),
             self.default_bool)
 
+    def test_hget_bool_returns_set_boolean(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key4, self.val4)
+        self.assertEqual(self.redis.hget_bool(hash_name, self.key4,
+                                              default=self.default_bool),
+                         self.val4_bool)
+
+    def test_hget_bool_returns_default_for_unset_key(self):
+        hash_name = "dummy_hash"
+        self.assertEqual(self.redis.hget_bool(hash_name, self.key4,
+                                              default=self.default_bool),
+                         self.default_bool)
+
+    def test_hget_bool_returns_false_for_non_boolean_value(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key1, self.val1)
+        self.assertFalse(self.redis.hget_bool(hash_name, self.key1,
+                                              default=self.default_bool))
+
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_hget_bool_returns_default_if_redis_down(self, _):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key4, self.val4)
+        self.assertEqual(self.redis.hget_bool(hash_name, self.key4,
+                                              default=self.default_bool),
+                         self.default_bool)
+
     def test_exists_returns_true_if_exists(self):
         self.redis.set(self.key1, self.val1)
         self.assertTrue(self.redis.exists(self.key1))
@@ -368,6 +603,21 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
     def test_exists_returns_false_if_redis_down(self, _):
         self.redis.set_unsafe(self.key1, self.val1)
         self.assertFalse(self.redis.exists(self.key1))
+
+    def test_hexists_returns_true_if_exists(self):
+        hash_name = "dummy_hash"
+        self.redis.hset(hash_name, self.key1, self.val1)
+        self.assertTrue(self.redis.hexists(hash_name, self.key1))
+
+    def test_hexists_returns_false_if_not_exists(self):
+        hash_name = "dummy_hash"
+        self.assertFalse(self.redis.hexists(hash_name, self.key1))
+
+    @patch(REDIS_RECENTLY_DOWN_FUNCTION, return_value=True)
+    def test_hexists_returns_false_if_redis_down(self, _):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+        self.assertFalse(self.redis.hexists(hash_name, self.key1))
 
     def test_get_keys_returns_empty_list_if_no_keys(self):
         keys_list = self.redis.get_keys()
@@ -509,10 +759,28 @@ class TestRedisApiWithRedisOffline(unittest.TestCase):
         except RedisConnectionError:
             pass
 
+    def test_hset_unsafe_throws_connection_exception(self):
+
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hset_unsafe(hash_name, self.key, self.val)
+            self.fail('Expected RedisConnectionError exception to be thrown.')
+        except RedisConnectionError:
+            pass
+
     def test_set_multiple_unsafe_throws_connection_exception(self):
 
         try:
             self.redis.set_multiple_unsafe({self.key: self.val})
+            self.fail('Expected RedisConnectionError exception to be thrown.')
+        except RedisConnectionError:
+            pass
+
+    def test_hset_multiple_unsafe_throws_connection_exception(self):
+
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hset_multiple_unsafe(hash_name, {self.key: self.val})
             self.fail('Expected RedisConnectionError exception to be thrown.')
         except RedisConnectionError:
             pass
@@ -541,10 +809,28 @@ class TestRedisApiWithRedisOffline(unittest.TestCase):
         except RedisConnectionError:
             pass
 
+    def test_hget_unsafe_throws_connection_exception(self):
+
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hget_unsafe(hash_name, self.key)
+            self.fail('Expected RedisConnectionError exception to be thrown.')
+        except RedisConnectionError:
+            pass
+
     def test_get_int_unsafe_throws_connection_exception(self):
 
         try:
             self.redis.get_int_unsafe(self.key)
+            self.fail('Expected RedisConnectionError exception to be thrown.')
+        except RedisConnectionError:
+            pass
+
+    def test_hget_int_unsafe_throws_connection_exception(self):
+
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hget_int_unsafe(hash_name, self.key)
             self.fail('Expected RedisConnectionError exception to be thrown.')
         except RedisConnectionError:
             pass
@@ -557,10 +843,28 @@ class TestRedisApiWithRedisOffline(unittest.TestCase):
         except RedisConnectionError:
             pass
 
+    def test_hget_bool_unsafe_throws_connection_exception(self):
+
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hget_bool_unsafe(hash_name, self.key)
+            self.fail('Expected RedisConnectionError exception to be thrown.')
+        except RedisConnectionError:
+            pass
+
     def test_exists_unsafe_throws_connection_exception(self):
 
         try:
             self.redis.exists_unsafe(self.key)
+            self.fail('Expected RedisConnectionError exception to be thrown.')
+        except RedisConnectionError:
+            pass
+
+    def test_hexists_unsafe_throws_connection_exception(self):
+
+        try:
+            hash_name = "dummy_hash"
+            self.redis.hexists_unsafe(hash_name, self.key)
             self.fail('Expected RedisConnectionError exception to be thrown.')
         except RedisConnectionError:
             pass
@@ -592,8 +896,17 @@ class TestRedisApiWithRedisOffline(unittest.TestCase):
     def test_set_returns_none(self):
         self.assertIsNone(self.redis.set(self.key, self.val))
 
+    def test_hset_returns_none(self):
+        hash_name = "dummy_hash"
+        self.assertIsNone(self.redis.hset(hash_name, self.key, self.val))
+
     def test_set_multiple_returns_none(self):
         self.assertIsNone(self.redis.set_multiple({self.key: self.val}))
+
+    def test_hset_multiple_returns_none(self):
+        hash_name = "dummy_hash"
+        self.assertIsNone(
+            self.redis.hset_multiple(hash_name, {self.key: self.val}))
 
     def test_set_for_returns_none(self):
         self.assertIsNone(self.redis.set_for(self.key, self.val, self.time))
@@ -608,12 +921,32 @@ class TestRedisApiWithRedisOffline(unittest.TestCase):
         default = 'default'
         self.assertEqual(self.redis.get(self.key, default=default), default)
 
+    def test_hget_returns_none_if_no_default_specified(self):
+        hash_name = "dummy_hash"
+        self.assertIsNone(self.redis.hget(hash_name, self.key))
+
+    def test_hget_returns_default_if_default_specified(self):
+        hash_name = "dummy_hash"
+        default = 'default'
+        self.assertEqual(self.redis.hget(hash_name, self.key, default=default),
+                         default)
+
     def test_get_int_returns_none_if_no_default_specified(self):
         self.assertIsNone(self.redis.get_int(self.key))
 
     def test_get_int_returns_default_if_default_specified(self):
         default = 123456
         self.assertEqual(self.redis.get_int(self.key, default=default), default)
+
+    def test_hget_int_returns_none_if_no_default_specified(self):
+        hash_name = "dummy_hash"
+        self.assertIsNone(self.redis.hget_int(hash_name, self.key))
+
+    def test_hget_int_returns_default_if_default_specified(self):
+        hash_name = "dummy_hash"
+        default = 123456
+        self.assertEqual(
+            self.redis.hget_int(hash_name, self.key, default=default), default)
 
     def test_get_bool_returns_none_if_no_default_specified(self):
         self.assertIsNone(self.redis.get_bool(self.key))
@@ -623,10 +956,24 @@ class TestRedisApiWithRedisOffline(unittest.TestCase):
         self.assertEqual(self.redis.get_bool(self.key, default=default),
                          default)
 
+    def test_hget_bool_returns_none_if_no_default_specified(self):
+        hash_name = "dummy_hash"
+        self.assertIsNone(self.redis.hget_bool(hash_name, self.key))
+
+    def test_hget_bool_returns_default_if_default_specified(self):
+        hash_name = "dummy_hash"
+        default = True
+        self.assertEqual(
+            self.redis.hget_bool(hash_name, self.key, default=default), default)
+
     def test_exists_returns_false(self):
         self.assertFalse(self.redis.exists(self.key))
 
-    def test_exists_returns_empty_list(self):
+    def test_hexists_returns_false(self):
+        hash_name = "dummy_hash"
+        self.assertFalse(self.redis.hexists(hash_name, self.key))
+
+    def test_get_keys_returns_empty_list(self):
         self.assertListEqual(self.redis.get_keys(), [])
 
     def test_remove_returns_none(self):
@@ -725,11 +1072,31 @@ class TestRedisNamespaceWithRedisOnline(unittest.TestCase):
 
         self.assertEqual(get_value, self.val1_bytes)
 
+    def test_hset_uses_namespace_internally(self):
+        hash_name = "dummy_hash"
+        self.redis.hset_unsafe(hash_name, self.key1, self.val1)
+
+        # Use raw Redis command to get, to bypass automatically-added namespace
+        get_value = self.redis._redis.hget(self.namespace1 + ':' + hash_name,
+                                           self.key1)
+
+        self.assertEqual(get_value, self.val1_bytes)
+
     def test_get_uses_namespace_internally(self):
         # Use raw Redis command to set, to bypass automatically-added namespace
         self.redis._redis.set(self.namespace1 + ':' + self.key1, self.val1)
 
         get_value = self.redis.get_unsafe(self.key1)
+        self.assertEqual(get_value, self.val1_bytes)
+
+    def test_hget_uses_namespace_internally(self):
+        hash_name = "dummy_hash"
+
+        # Use raw Redis command to set, to bypass automatically-added namespace
+        self.redis._redis.hset(self.namespace1 + ':' + hash_name,
+                               self.key1, self.val1)
+
+        get_value = self.redis.hget_unsafe(hash_name, self.key1)
         self.assertEqual(get_value, self.val1_bytes)
 
     def test_redis_api_with_same_namespace_has_access_to_same_store(self):
@@ -758,11 +1125,7 @@ class TestRedisApiLiveAndDownFeaturesWithRedisOffline(unittest.TestCase):
                               live_check_time_interval=
                               self.live_check_time_interval)
 
-        self.key = 'key'
-        self.val = 'val'
-        self.time = timedelta.max
-
-    def test_is_live_by_default(self):
+    def test_is_live_returns_true_by_default(self):
         self.assertTrue(self.redis.is_live)
 
     def test_set_as_live_changes_is_live_to_true(self):
@@ -772,7 +1135,21 @@ class TestRedisApiLiveAndDownFeaturesWithRedisOffline(unittest.TestCase):
         self.redis._set_as_live()
         self.assertTrue(self.redis._is_live)
 
-    def test_et_as_down_changes_is_live_to_false(self):
+    def test_set_as_live_leaves_is_live_as_true_if_already_true(self):
+        self.redis._is_live = True
+        self.assertTrue(self.redis.is_live)
+
+        self.redis._set_as_live()
+        self.assertTrue(self.redis._is_live)
+
+    def test_set_as_down_changes_is_live_to_false(self):
+        self.redis._set_as_down()
+        self.assertFalse(self.redis.is_live)
+
+    def test_set_as_down_leaves_is_live_as_false_if_already_false(self):
+        self.redis._is_live = False
+        self.assertFalse(self.redis.is_live)
+
         self.redis._set_as_down()
         self.assertFalse(self.redis.is_live)
 

@@ -9,8 +9,9 @@ from src.alerters.reactive.blockchain import Blockchain
 from src.alerters.reactive.node import Node, NodeType
 from src.channels.channel import ChannelSet
 from src.monitors.blockchain import BlockchainMonitor
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.exceptions import NoLiveNodeConnectedWithAnApiServerException
-from src.utils.redis_api import RedisApi
 from test import TestInternalConf, TestUserConf
 from test.test_helpers import CounterChannel
 
@@ -48,7 +49,7 @@ class TestBlockchainMonitorWithoutRedis(unittest.TestCase):
         self.logger = logging.getLogger('dummy')
         self.monitor_name = 'testblockchainmonitor'
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
         self.redis = None
         self.data_sources = []
         self.polkadot_api_endpoint = 'api_endpoint'
@@ -274,7 +275,7 @@ class TestBlockchainMonitorWithRedis(unittest.TestCase):
         self.monitor_name = 'testblockchainmonitor'
         self.blockchain_name = 'testblockchain'
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.db = TestInternalConf.redis_test_database
         self.host = TestUserConf.redis_host
@@ -300,17 +301,15 @@ class TestBlockchainMonitorWithRedis(unittest.TestCase):
 
         self.redis_alive_key_timeout = \
             TestInternalConf.redis_blockchain_monitor_alive_key_timeout
-        self.redis_alive_key = \
-            TestInternalConf.redis_blockchain_monitor_alive_key_prefix + \
-            self.monitor_name
         self.alive_key_timeout = \
             TestInternalConf.redis_blockchain_monitor_alive_key_timeout
 
     def test_save_state_saves_alive_key_temporarily(self):
         self.monitor.save_state()
 
-        last_update = self.redis.get(self.redis_alive_key)
-        timeout = self.redis.time_to_live(self.redis_alive_key)
+        key = Keys.get_blockchain_monitor_alive(self.monitor_name)
+        last_update = self.redis.get(key)
+        timeout = self.redis.time_to_live(key)
 
         self.assertIsNotNone(last_update)
         self.assertEqual(timeout, self.alive_key_timeout)

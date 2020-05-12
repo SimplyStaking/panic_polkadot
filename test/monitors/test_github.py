@@ -6,7 +6,8 @@ from redis import ConnectionError as RedisConnectionError
 
 from src.channels.channel import ChannelSet
 from src.monitors.github import GitHubMonitor
-from src.utils.redis_api import RedisApi
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from test import TestInternalConf, TestUserConf
 from test.test_helpers import CounterChannel
 
@@ -23,10 +24,9 @@ class TestGitHubMonitorWithoutRedis(unittest.TestCase):
         self.logger = logging.getLogger('dummy')
         self.monitor_name = 'testmonitor'
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
         self.repo_name = 'dummy/repository/'
         self.releases_page = 'dummy.releases.page'
-        self.redis_prefix = TestInternalConf.redis_github_releases_key_prefix
 
         self.db = TestInternalConf.redis_test_database
         self.host = TestUserConf.redis_host
@@ -35,7 +35,7 @@ class TestGitHubMonitorWithoutRedis(unittest.TestCase):
 
         self.monitor = GitHubMonitor(self.monitor_name, self.channel_set,
                                      self.logger, None, self.repo_name,
-                                     self.releases_page, self.redis_prefix)
+                                     self.releases_page)
         self.monitor._internal_conf = TestInternalConf
 
     @patch(GET_JSON_FUNCTION, return_value={
@@ -91,10 +91,9 @@ class TestGitHubMonitorWithRedis(unittest.TestCase):
         self.logger = logging.getLogger('dummy')
         self.monitor_name = 'testmonitor'
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
         self.repo_name = 'dummy/repository/'
         self.releases_page = 'dummy.releases.page'
-        self.redis_prefix = TestInternalConf.redis_github_releases_key_prefix
 
         self.db = TestInternalConf.redis_test_database
         self.host = TestUserConf.redis_host
@@ -111,7 +110,7 @@ class TestGitHubMonitorWithRedis(unittest.TestCase):
 
         self.monitor = GitHubMonitor(self.monitor_name, self.channel_set,
                                      self.logger, self.redis, self.repo_name,
-                                     self.releases_page, self.redis_prefix)
+                                     self.releases_page)
         self.monitor._internal_conf = TestInternalConf
 
     def test_load_state_changes_nothing_if_nothing_saved(self):
@@ -121,7 +120,7 @@ class TestGitHubMonitorWithRedis(unittest.TestCase):
 
     def test_load_state_sets_values_to_saved_values(self):
         # Set Redis values manually
-        key = self.redis_prefix + self.repo_name
+        key = Keys.get_github_releases(self.repo_name)
         self.redis.set_unsafe(key, 10)
 
         # Load the values from Redis
@@ -138,7 +137,7 @@ class TestGitHubMonitorWithRedis(unittest.TestCase):
         self.monitor.save_state()
 
         # Assert
-        key = self.redis_prefix + self.repo_name
+        key = Keys.get_github_releases(self.repo_name)
         self.assertEqual(10, self.redis.get_int(key))
 
     def test_save_state_sets_nothing_if_no_previous_state(self):
@@ -146,5 +145,5 @@ class TestGitHubMonitorWithRedis(unittest.TestCase):
         self.monitor.save_state()
 
         # Assert
-        key = self.redis_prefix + self.repo_name
+        key = Keys.get_github_releases(self.repo_name)
         self.assertIsNone(self.redis.get_int(key))

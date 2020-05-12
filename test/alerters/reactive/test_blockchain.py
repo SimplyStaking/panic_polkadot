@@ -6,7 +6,8 @@ from redis import ConnectionError as RedisConnectionError
 from src.alerters.reactive.blockchain import Blockchain
 from src.alerts.alerts import *
 from src.channels.channel import ChannelSet
-from src.utils.redis_api import RedisApi
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from test import TestInternalConf, TestUserConf
 from test.test_helpers import CounterChannel
 
@@ -20,12 +21,27 @@ class TestBlockchainWithoutRedis(unittest.TestCase):
         self.blockchain = Blockchain(name=self.blockchain_name, redis=None)
 
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.dummy_referendum_count, self.dummy_public_prop_count, \
         self.dummy_council_prop_count = 10, 10, 10
         self.dummy_validator_set_size = 120
-        self.dummy_referendum_info = {'end': '8568'}
+        self.dummy_referendum_info_ongoing = {
+            'Ongoing': {
+                'proposalHash': '0x345jtg8ergfg8df89h9we9t9sd9g9gsd9g9sdfg',
+                'end': 124143848,
+                'threshold': 'Supermajorityapproval',
+                'delay': 11549,
+                'tally': {
+                    'ayes': '4544545 KSM',
+                    'nayes': '3454 KSM',
+                    'turnout': '4545454454 KSM'
+                }
+            }
+        }
+        self.dummy_referendum_info_finished = {
+            'Finished': {'approved': False, 'end': 124143848}
+        }
 
     def test_str_returns_blockchain_name(self) -> None:
         self.assertEqual(self.blockchain_name, str(self.blockchain))
@@ -80,7 +96,7 @@ class TestBlockchainWithoutRedis(unittest.TestCase):
         self.assertEqual(self.blockchain.referendum_count,
                          self.dummy_referendum_count)
 
-    def test_set_referendum_count_raises_no_alerts_if_new_referendum_expired(
+    def test_set_referendum_count_raises_no_alerts_if_referendum_data_cleared(
             self) -> None:
         self.blockchain.set_referendum_count(self.dummy_referendum_count,
                                              self.channel_set, self.logger)
@@ -91,14 +107,26 @@ class TestBlockchainWithoutRedis(unittest.TestCase):
         self.assertTrue(self.counter_channel.no_alerts())
         self.assertEqual(self.blockchain.referendum_count, new_referendum_count)
 
-    def test_set_referendum_count_info_alert_if_new_referendum_not_expired(
+    def test_set_referendum_count_raises_no_alerts_if_referendum_finished_not_cleared(
             self) -> None:
         self.blockchain.set_referendum_count(self.dummy_referendum_count,
                                              self.channel_set, self.logger)
         new_referendum_count = self.dummy_referendum_count + 1
         self.blockchain.set_referendum_count(
             new_referendum_count, self.channel_set, self.logger,
-            self.dummy_referendum_info)
+            self.dummy_referendum_info_finished)
+
+        self.assertTrue(self.counter_channel.no_alerts())
+        self.assertEqual(self.blockchain.referendum_count, new_referendum_count)
+
+    def test_set_referendum_count_info_alert_if_new_referendum_ongoing(
+            self) -> None:
+        self.blockchain.set_referendum_count(self.dummy_referendum_count,
+                                             self.channel_set, self.logger)
+        new_referendum_count = self.dummy_referendum_count + 1
+        self.blockchain.set_referendum_count(
+            new_referendum_count, self.channel_set, self.logger,
+            self.dummy_referendum_info_ongoing)
 
         self.assertEqual(self.counter_channel.info_count, 1)
         self.assertIsInstance(self.counter_channel.latest_alert,
@@ -264,7 +292,7 @@ class TestBlockchainWithRedis(unittest.TestCase):
         self.redis_prefix = self.blockchain_name
         self.logger = logging.getLogger('dummy')
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.db = TestInternalConf.redis_test_database
         self.host = TestUserConf.redis_host
@@ -295,14 +323,17 @@ class TestBlockchainWithRedis(unittest.TestCase):
 
     def test_load_state_sets_values_to_saved_values(self):
         # Set Redis values manually
-        self.redis.set_unsafe(self.redis_prefix + '_referendum_count',
-                              self.dummy_referendum_count)
-        self.redis.set_unsafe(self.redis_prefix + '_public_prop_count',
-                              self.dummy_public_prop_count)
-        self.redis.set_unsafe(self.redis_prefix + '_council_prop_count',
-                              self.dummy_council_prop_count)
-        self.redis.set_unsafe(self.redis_prefix + '_validator_set_size',
-                              self.dummy_validator_set_size)
+        hash_name = Keys.get_hash_blockchain(self.blockchain.name)
+        self.redis.hset_multiple_unsafe(hash_name, {
+            Keys.get_blockchain_referendum_count(self.blockchain.name):
+                self.dummy_referendum_count,
+            Keys.get_blockchain_public_prop_count(self.blockchain.name):
+                self.dummy_public_prop_count,
+            Keys.get_blockchain_council_prop_count(self.blockchain.name):
+                self.dummy_council_prop_count,
+            Keys.get_blockchain_validator_set_size(self.blockchain.name):
+                self.dummy_validator_set_size,
+        })
 
         # Load the Redis values
         self.blockchain.load_state(self.logger)
@@ -332,17 +363,20 @@ class TestBlockchainWithRedis(unittest.TestCase):
         self.blockchain.save_state(self.logger)
 
         # Assert
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix + '_referendum_count'),
+        hash_name = Keys.get_hash_blockchain(self.blockchain.name)
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_blockchain_referendum_count(
+                self.blockchain.name)),
             self.dummy_referendum_count)
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix + '_public_prop_count'),
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_blockchain_public_prop_count(
+                self.blockchain.name)),
             self.dummy_public_prop_count)
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix +
-                                      '_council_prop_count'),
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_blockchain_council_prop_count(
+                self.blockchain.name)),
             self.dummy_council_prop_count)
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix +
-                                      '_validator_set_size'),
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_blockchain_validator_set_size(
+                self.blockchain.name)),
             self.dummy_validator_set_size)

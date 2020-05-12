@@ -6,6 +6,8 @@ from src.alerters.reactive.node import Node
 from src.alerts.alerts import FoundLiveArchiveNodeAgainAlert
 from src.channels.channel import ChannelSet
 from src.monitors.monitor import Monitor
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.data_wrapper.polkadot_api import PolkadotApiWrapper
@@ -13,7 +15,6 @@ from src.utils.exceptions import \
     NoLiveNodeConnectedWithAnApiServerException, \
     NoLiveArchiveNodeConnectedWithAnApiServerException
 from src.utils.parsing import parse_int_from_string
-from src.utils.redis_api import RedisApi
 from src.utils.scaling import scale_to_pico
 from src.utils.types import NONE
 
@@ -33,20 +34,10 @@ class NodeMonitor(Monitor):
         self._node_monitor_max_catch_up_blocks = \
             node_monitor_max_catch_up_blocks
 
-        self._redis_alive_key = \
-            self._internal_conf.redis_node_monitor_alive_key_prefix + \
-            self._monitor_name
         self._redis_alive_key_timeout = \
             self._internal_conf.redis_node_monitor_alive_key_timeout
         self._redis_last_height_key_timeout = \
             self._internal_conf.redis_node_monitor_last_height_key_timeout
-        self._redis_session_index_key = \
-            self._internal_conf.redis_node_monitor_session_index_key_prefix \
-            + self._monitor_name
-        self._redis_last_height_checked_key = \
-            self._internal_conf. \
-                redis_node_monitor_last_height_checked_key_prefix \
-            + self._monitor_name
 
         # The data sources for indirect monitoring are all nodes from the same
         # chain which have been set as a data source in the config.
@@ -58,7 +49,7 @@ class NodeMonitor(Monitor):
                                                  if node.is_archive_node]
         self.last_data_source_used = None
         self._last_height_checked = NONE
-        self._session_index = None
+        self._session_index = NONE
         self._monitor_is_catching_up = False
         self._indirect_monitoring_disabled = len(data_sources) == 0
         self._no_live_archive_node_alert_sent = False
@@ -136,38 +127,42 @@ class NodeMonitor(Monitor):
         # If Redis is enabled, load the session index, and last height checked
         # for slashing if any.
         if self.redis_enabled:
-            self._session_index = self.redis.get_int(
-                self._redis_session_index_key, None)
-            self._last_height_checked = self.redis.get_int(
-                self._redis_last_height_checked_key, NONE)
+            key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+            key_lh = Keys.get_node_monitor_last_height_checked(
+                self.monitor_name)
+            self._session_index = self.redis.get_int(key_si, NONE)
+            self._last_height_checked = self.redis.get_int(key_lh, NONE)
 
             self.logger.debug(
                 'Restored %s state: %s=%s, %s=%s', self._monitor_name,
-                self._redis_session_index_key, self._session_index,
-                self._redis_last_height_checked_key, self._last_height_checked)
+                key_si, self._session_index, key_lh, self._last_height_checked)
 
     def save_state(self) -> None:
         # If Redis is enabled, save the current time, indicating that the node
         # monitor was alive at this time, the current session index,
         # and the last height checked.
         if self.redis_enabled:
+            key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+            key_lh = Keys.get_node_monitor_last_height_checked(
+                self.monitor_name)
+            key_alive = Keys.get_node_monitor_alive(self.monitor_name)
+
             self.logger.debug(
                 'Saving node monitor state: %s=%s, %s=%s', self._monitor_name,
-                self._redis_session_index_key, self._session_index,
-                self._redis_last_height_checked_key, self._last_height_checked)
+                key_si, self._session_index, key_lh, self._last_height_checked)
 
             # Set session index key
-            self.redis.set(self._redis_session_index_key, self._session_index)
+            self.redis.set(key_si, self._session_index)
 
             # Set last height checked key
-            key = self._redis_last_height_checked_key
             until = timedelta(seconds=self._redis_last_height_key_timeout)
-            self.redis.set_for(key, self._last_height_checked, until)
+            self.redis.set_for(key_lh, self._last_height_checked, until)
 
             # Set alive key (to be able to query latest update from Telegram)
-            key = self._redis_alive_key
             until = timedelta(seconds=self._redis_alive_key_timeout)
-            self.redis.set_for(key, str(datetime.now()), until)
+            self.redis.set_for(
+                key_alive, str(datetime.now().timestamp()), until
+            )
 
     def status(self) -> str:
         if self._node.is_validator:
@@ -228,7 +223,7 @@ class NodeMonitor(Monitor):
         self._logger.debug('%s session_index: %s', self._node,
                            new_session_index)
 
-        if self._session_index is None:
+        if self._session_index is NONE:
             self._session_index = new_session_index
         elif self._session_index < new_session_index:
             self._session_index = new_session_index
@@ -278,11 +273,11 @@ class NodeMonitor(Monitor):
     def _monitor_indirect_validator(self) -> None:
         session_validators = self.data_wrapper.get_session_validators(
             self.data_source_indirect.ws_url)
-        stakers_json = self.data_wrapper.get_stakers(
+        stakers_json = self.data_wrapper.get_eras_stakers(
             self.data_source_indirect.ws_url, self._node.stash_account_address)
         council_members = self.data_wrapper.get_council_members(
             self.data_source_indirect.ws_url)
-        elected_validators = self.data_wrapper.get_current_elected(
+        staking_validators = self.data_wrapper.get_derive_staking_validators(
             self.data_source_indirect.ws_url)
         new_session_index = self.data_wrapper.get_current_index(
             self.data_source_indirect.ws_url)
@@ -313,6 +308,7 @@ class NodeMonitor(Monitor):
                                self.logger)
 
         # Set elected
+        elected_validators = staking_validators['nextElected']
         is_elected = self._node.stash_account_address in elected_validators
         self._logger.debug('%s elected: %s', self._node, is_elected)
         self.node.set_elected(is_elected, self.channels, self.logger)

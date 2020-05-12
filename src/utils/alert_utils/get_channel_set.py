@@ -8,6 +8,8 @@ from src.channels.log import LogChannel
 from src.channels.mongo import MongoChannel
 from src.channels.telegram import TelegramChannel
 from src.channels.twilio import TwilioChannel
+from src.store.mongo.mongo_api import MongoApi
+from src.store.redis.redis_api import RedisApi
 from src.utils.alert_utils.email_sending import EmailSender
 from src.utils.alert_utils.telegram_bot_api import TelegramBotApi
 from src.utils.alert_utils.twilio_api import TwilioApi
@@ -16,8 +18,6 @@ from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.config_parsers.user import UserConfig
 from src.utils.config_parsers.user_parsed import UserConf
 from src.utils.logging import create_logger
-from src.utils.mongo_api import MongoApi
-from src.utils.redis_api import RedisApi
 
 
 def _get_log_channel(alerts_log_file: str, channel_name: str,
@@ -68,8 +68,8 @@ def _get_twilio_channel(channel_name: str, logger_general: logging.Logger,
                                    redis, twilio,
                                    user_conf.twilio_phone_number,
                                    user_conf.twilio_dial_numbers,
-                                   internal_conf.twiml_instructions_url,
-                                   internal_conf.redis_twilio_snooze_key,
+                                   internal_conf.twiml,
+                                   internal_conf.twiml_is_url,
                                    backup_channels_for_twilio)
     return twilio_channel
 

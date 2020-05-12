@@ -1,10 +1,12 @@
 # PANIC for Polkadot
 
-<img src="doc/IMG_PANIC.png" alt="design" width="600"/>
+<img src="doc/images/IMG_PANIC.png" alt="PANIC Logo" width="600"/>
 
-PANIC for [Polkadot](https://polkadot.network/) is a lightweight yet powerful open source monitoring and alerting solution for Polkadot nodes by [Simply VC](https://simply-vc.com.mt/). It is compatible with any [Substrate](https://www.parity.io/substrate/) based chain provided that it is injected with the default types (latest Polkadot and Substrate master types). The tool was built with user friendliness in mind, without excluding cool and useful features like phone calls for critical alerts and Telegram commands for increased control over your alerter.
+PANIC for [Polkadot](https://polkadot.network/) is a lightweight yet powerful open source monitoring and alerting solution for Polkadot nodes by [Simply VC](https://simply-vc.com.mt/). It is compatible with any [Substrate](https://www.parity.io/substrate/) based chain provided that it is injected with the default types (latest Polkadot and Substrate master types).
 
-The alerter's focus on a modular design means that it is beginner friendly but also developer friendly. It allows the user to decide which components of the alerter to set up while making it easy for developers to add new features. PANIC also offers two levels of configurability, _user_ and _internal_, allowing more experienced users to fine-tune the alerter to their preference.
+The tool was built with user friendliness in mind, without excluding cool and useful features like phone calls for critical alerts and Telegram commands for increased control over your alerter. In addition to this, a brand new **User Interface** is included so that the users can check the status of their nodes at a glance, view alerts in real-time, and easily set-up PANIC to their liking.
+
+The alerter's focus on a modular design means that not only is it beginner friendly but also developer friendly. It allows the user to decide which components of the alerter to set up while making it easy for developers to add new features. PANIC also offers two levels of configurability, _user_ and _internal_, allowing more experienced users to fine-tune the alerter to their preference.
 
 We are sure that PANIC will be beneficial for node operators in the Polkadot community and we look forward for feedback. Feel free to read on if you are interested in the design of the alerter, if you wish to try it out, or if you would like to support and contribute to this open source project, or just check out upcoming features.
 

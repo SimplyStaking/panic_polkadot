@@ -5,7 +5,9 @@ from src.alerts.alerts import NewReferendumAlert, \
     NewCouncilProposalAlert, NewPublicProposalAlert, \
     ValidatorSetSizeDecreasedAlert, ValidatorSetSizeIncreasedAlert
 from src.channels.channel import ChannelSet
-from src.utils.redis_api import RedisApi
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
+from src.utils.parsing import parse_int_from_string
 from src.utils.types import PolkadotWrapperType
 
 
@@ -16,7 +18,7 @@ class Blockchain:
         self.name = name
         self._redis = redis
         self._redis_enabled = redis is not None
-        self._redis_prefix = self.name
+        self._redis_hash = Keys.get_hash_blockchain(name)
 
         self._referendum_count = None
         self._public_prop_count = None
@@ -51,14 +53,18 @@ class Blockchain:
     def load_state(self, logger: logging.Logger) -> None:
         # If Redis is enabled, load any previously stored state
         if self._redis_enabled:
-            self._referendum_count = self._redis.get_int(
-                self._redis_prefix + '_referendum_count', None)
-            self._public_prop_count = self._redis.get_int(
-                self._redis_prefix + '_public_prop_count', None)
-            self._council_prop_count = self._redis.get_int(
-                self._redis_prefix + '_council_prop_count', None)
-            self._validator_set_size = self._redis.get_int(
-                self._redis_prefix + '_validator_set_size', None)
+            self._referendum_count = self._redis.hget_int(
+                self._redis_hash,
+                Keys.get_blockchain_referendum_count(self.name), None)
+            self._public_prop_count = self._redis.hget_int(
+                self._redis_hash,
+                Keys.get_blockchain_public_prop_count(self.name), None)
+            self._council_prop_count = self._redis.hget_int(
+                self._redis_hash,
+                Keys.get_blockchain_council_prop_count(self.name), None)
+            self._validator_set_size = self._redis.hget_int(
+                self._redis_hash,
+                Keys.get_blockchain_validator_set_size(self.name), None)
 
             logger.debug(
                 'Restored %s state: _referendum_count=%s, '
@@ -78,15 +84,15 @@ class Blockchain:
                 self._council_prop_count, self._validator_set_size)
 
             # Set values
-            self._redis.set_multiple({
-                self._redis_prefix +
-                '_referendum_count': self._referendum_count,
-                self._redis_prefix +
-                '_public_prop_count': self._public_prop_count,
-                self._redis_prefix +
-                '_council_prop_count': self._council_prop_count,
-                self._redis_prefix +
-                '_validator_set_size': self._validator_set_size
+            self._redis.hset_multiple(self._redis_hash, {
+                Keys.get_blockchain_referendum_count(self.name):
+                    self._referendum_count,
+                Keys.get_blockchain_public_prop_count(self.name):
+                    self._public_prop_count,
+                Keys.get_blockchain_council_prop_count(self.name):
+                    self._council_prop_count,
+                Keys.get_blockchain_validator_set_size(self.name):
+                    self._validator_set_size
             })
 
     def set_referendum_count(self, new_referendum_count: int,
@@ -96,11 +102,16 @@ class Blockchain:
         logger.debug('%s set_referendum_count: referendum_count(currently)=%s, '
                      'channels=%s', self, self.referendum_count, channels)
 
+        # If referendum is new and still ongoing, alert the operator.
         if self._referendum_count not in [None, new_referendum_count] \
                 and referendum_info is not None:
-            end_block = int(referendum_info['end'])
-            channels.alert_info(NewReferendumAlert(self.referendum_count,
-                                                   end_block))
+            if 'Ongoing' in referendum_info:
+                end_block = parse_int_from_string(str(
+                    referendum_info['Ongoing']['end']
+                ))
+                channels.alert_info(NewReferendumAlert(
+                    self.referendum_count, end_block)
+                )
         self._referendum_count = new_referendum_count
 
     def set_council_prop_count(self, new_council_prop_count: int,

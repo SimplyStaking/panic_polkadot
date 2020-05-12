@@ -2,8 +2,8 @@ import logging
 from typing import Optional
 
 from src.channels.channel import ChannelSet
+from src.store.redis.redis_api import RedisApi
 from src.utils.config_parsers.internal import InternalConfig
-from src.utils.redis_api import RedisApi
 
 
 class Monitor:

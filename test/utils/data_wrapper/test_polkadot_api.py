@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from src.channels.channel import ChannelSet
 from src.utils.data_wrapper.polkadot_api import PolkadotApiWrapper
+from test import TestInternalConf
 from test.test_helpers import CounterChannel
 
 GET_POLKADOT_JSON_FUNCTION = \
@@ -39,7 +40,7 @@ class TestPolkadotApi(unittest.TestCase):
         self.wrapper = PolkadotApiWrapper(self.logger, self.api_endpoint)
 
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.params = {'websocket': self.ws_url}
 
@@ -193,24 +194,24 @@ class TestPolkadotApi(unittest.TestCase):
         self.assertTrue(self.wrapper.get_session_validators(self.ws_url))
 
     @patch(GET_POLKADOT_JSON_FUNCTION)
-    def test_get_current_elected(self, mock):
+    def test_get_derive_staking_validators(self, mock):
         # Set up mock
-        endpoint = self.api_endpoint + '/api/query/staking/currentElected'
-        api_call = 'staking/currentElected'
+        endpoint = self.api_endpoint + '/api/derive/staking/validators'
+        api_call = 'staking/validators'
         mock.side_effect = api_mock_generator(endpoint, self.params, api_call)
 
-        self.assertTrue(self.wrapper.get_current_elected(self.ws_url))
+        self.assertTrue(self.wrapper.get_derive_staking_validators(self.ws_url))
 
     @patch(GET_POLKADOT_JSON_FUNCTION)
-    def test_get_stakers(self, mock):
+    def test_get_eras_stakers(self, mock):
         # Set up mock
-        endpoint = self.api_endpoint + '/api/query/staking/stakers'
-        self.params['account_address'] = self.acc_addr
-        api_call = 'staking/stakers'
+        endpoint = self.api_endpoint + '/api/query/staking/erasStakers'
+        self.params['account_id'] = self.acc_addr
+        api_call = 'staking/erasStakers'
         mock.side_effect = api_mock_generator(endpoint, self.params, api_call)
 
         self.assertTrue(
-            self.wrapper.get_stakers(self.ws_url, self.acc_addr))
+            self.wrapper.get_eras_stakers(self.ws_url, self.acc_addr))
 
     @patch(GET_POLKADOT_JSON_FUNCTION)
     def test_get_events(self, mock):

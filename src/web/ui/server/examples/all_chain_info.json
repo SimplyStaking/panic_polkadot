@@ -1,0 +1,89 @@
+{
+  "blockchain": {
+    "referendum_count": "23",
+    "validator_set_size": "130",
+    "public_prop_count": "10",
+    "council_prop_count": "12"
+  },
+  "nodes": {
+    "Sentry 1": {
+      "is_validator": "false",
+      "went_down_at": "1583754059",
+      "bonded_balance": "0",
+      "is_syncing": "True",
+      "no_of_peers": "25",
+      "active": "False",
+      "council_member": "False",
+      "elected": "False",
+      "disabled": "True",
+      "no_of_blocks_authored": "0",
+      "time_of_last_block": "-1",
+      "is_authoring": "False",
+      "time_of_last_block_check_activity": "-1",
+      "time_of_last_height_check_activity": "-1",
+      "time_of_last_height_change": "1583854080",
+      "finalized_block_height": "456789",
+      "no_change_in_height_warning_alert_sent": "False",
+      "auth_index": "-1"
+    },
+    "Sentry 2": {
+      "is_validator": "false",
+      "went_down_at": "None",
+      "bonded_balance": "0",
+      "is_syncing": "False",
+      "no_of_peers": "30",
+      "active": "False",
+      "council_member": "False",
+      "elected": "False",
+      "disabled": "False",
+      "no_of_blocks_authored": "0",
+      "time_of_last_block": "-1",
+      "is_authoring": "False",
+      "time_of_last_block_check_activity": "-1",
+      "time_of_last_height_check_activity": "-1",
+      "time_of_last_height_change": "-1",
+      "finalized_block_height": "556789",
+      "no_change_in_height_warning_alert_sent": "False",
+      "auth_index": "-1"
+    },
+    "Validator": {
+      "is_validator": "true",
+      "went_down_at": "1583754059",
+      "bonded_balance": "5000",
+      "is_syncing": "true",
+      "no_of_peers": "120",
+      "active": "false",
+      "council_member": "false",
+      "elected": "false",
+      "disabled": "false",
+      "no_of_blocks_authored": "20",
+      "time_of_last_block": "-1",
+      "is_authoring": "True",
+      "time_of_last_block_check_activity": "1583743790.798216",
+      "time_of_last_height_check_activity": "1583743890.798216",
+      "time_of_last_height_change": "1583917864",
+      "finalized_block_height": "496790",
+      "no_change_in_height_warning_alert_sent": "False",
+      "auth_index": "105"
+    }
+  },
+  "monitors": {
+    "node": {
+      "Sentry K1": {
+        "session_index": "-1",
+        "alive": "1583711420.521444",
+        "last_height_checked": "-1"
+      },
+      "Validator K1": {
+        "session_index": "2033",
+        "alive": "1583711466.798967",
+        "last_height_checked": "1372709"
+      }
+    },
+    "blockchain": {
+      "Kusama CC3": {
+        "alive": "1583711466.798967"
+      }
+    }
+  }
+}

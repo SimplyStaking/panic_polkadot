@@ -9,10 +9,11 @@ from src.alerters.reactive.node import Node, NodeType
 from src.alerts.alerts import FoundLiveArchiveNodeAgainAlert
 from src.channels.channel import ChannelSet
 from src.monitors.node import NodeMonitor
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.exceptions import \
     NoLiveNodeConnectedWithAnApiServerException, \
     NoLiveArchiveNodeConnectedWithAnApiServerException
-from src.utils.redis_api import RedisApi
 from src.utils.scaling import scale_to_tera
 from src.utils.types import NONE
 from test import TestInternalConf, TestUserConf
@@ -43,14 +44,14 @@ GET_SLASH_AMOUNT_FUNCITON = \
 GET_SESSION_VALIDATORS_FUNCTION = \
     'src.monitors.node.PolkadotApiWrapper.get_session_validators'
 
-GET_STAKERS_FUNCTION = \
-    'src.monitors.node.PolkadotApiWrapper.get_stakers'
+GET_ERAS_STAKERS_FUNCTION = \
+    'src.monitors.node.PolkadotApiWrapper.get_eras_stakers'
 
 GET_COUNCIL_MEMBERS_FUNCTION = \
     'src.monitors.node.PolkadotApiWrapper.get_council_members'
 
-GET_CURRENT_ELECTED_FUNCTION = \
-    'src.monitors.node.PolkadotApiWrapper.get_current_elected'
+GET_DERIVE_STAKING_VALIDATORS = \
+    'src.monitors.node.PolkadotApiWrapper.get_derive_staking_validators'
 
 GET_CURRENT_INDEX_FUNCTION = \
     'src.monitors.node.PolkadotApiWrapper.get_current_index'
@@ -68,12 +69,13 @@ DATA_SOURCE_ARCHIVE_PATH = \
     'src.monitors.node.NodeMonitor.data_source_archive'
 
 
+# noinspection PyUnresolvedReferences
 class TestNodeMonitorWithoutRedis(unittest.TestCase):
     def setUp(self) -> None:
         self.logger = logging.getLogger('dummy')
         self.monitor_name = 'testnodemonitor'
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
         self.node_monitor_max_catch_up_blocks = \
             TestInternalConf.node_monitor_max_catch_up_blocks
         self.redis = None
@@ -215,8 +217,8 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
 
         self.assertFalse(test_monitor.indirect_monitoring_disabled)
 
-    def test_session_index_None_by_default(self) -> None:
-        self.assertIsNone(self.validator_monitor.session_index)
+    def test_session_index_NONE_by_default(self) -> None:
+        self.assertEqual(NONE, self.validator_monitor.session_index)
 
     def test_last_height_checked_NONE_by_default(self) -> None:
         self.assertEqual(NONE, self.validator_monitor.last_height_checked)
@@ -524,9 +526,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_sets_API_up_when_validator_indirect_monitoring_succesfull(
@@ -552,9 +557,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_active_true_if_validator_stash_in_set(
@@ -572,9 +580,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_active_false_if_validator_stash_not_in_set(
@@ -591,9 +602,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_auth_index_correctly_if_validator_active(
@@ -612,9 +626,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_does_not_set_auth_index_if_validator_inactive(
@@ -636,9 +653,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION)
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_disabled_true_if_validator_in_disabled_list(
@@ -659,9 +679,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION)
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_disabled_false_if_validator_in_disabled_list(
@@ -682,9 +705,9 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION)
+    @patch(GET_DERIVE_STAKING_VALIDATORS)
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_elected_true_if_validator_in_elected_list(
@@ -692,10 +715,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
-            mock_elected.return_value = [
-                'sdgdsgJSNFNJ', 'HDHGF8dgfh',
-                self.validator.stash_account_address]
-
+            mock_elected.return_value = {
+                'validators': [],
+                'nextElected': [
+                    'sdgdsgJSNFNJ', 'HDHGF8dgfh',
+                    self.validator.stash_account_address],
+            }
             self.validator_monitor._archive_alerts_disabled = True
             self.validator_monitor._monitor_indirect_validator()
             self.assertTrue(self.validator_monitor.node.is_elected)
@@ -703,9 +728,9 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION)
+    @patch(GET_DERIVE_STAKING_VALIDATORS)
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_elected_false_if_validator_not_in_elected_list(
@@ -713,8 +738,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
-            mock_elected.return_value = ['sdgdsgJSNFNJ', 'HDHGF8dgfh']
-
+            mock_elected.return_value = {
+                'validators': [],
+                'nextElected': ['sdgdsgJSNFNJ', 'HDHGF8dgfh'],
+            }
             self.validator_monitor._archive_alerts_disabled = True
             self.validator_monitor._monitor_indirect_validator()
             self.assertFalse(self.validator_monitor.node.is_elected)
@@ -722,9 +749,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION)
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_council_member_true_if_validator_in_council_list(
@@ -743,9 +773,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION)
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_council_member_false_if_validator_not_in_council_list(
@@ -762,9 +795,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_validator_blocks_authored_to_retrieved_val_if_validator_active(
@@ -786,9 +822,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_does_not_set_validator_blocks_authored_if_validator_not_active(
@@ -807,9 +846,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_calls_monitor_archive_if_not_disabled(
@@ -826,9 +868,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
     @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
     @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
-    @patch(GET_CURRENT_ELECTED_FUNCTION, return_value=[])
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
-    @patch(GET_STAKERS_FUNCTION,
+    @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_does_not_call_monitor_archive_if_disabled(
@@ -1011,7 +1056,7 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
         self.logger = logging.getLogger('dummy')
         self.monitor_name = 'testnodemonitor'
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.db = TestInternalConf.redis_test_database
         self.host = TestUserConf.redis_host
@@ -1041,30 +1086,21 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
         self.dummy_session_index = 60
         self.dummy_last_height_checked = 1000
 
-        self.redis_alive_key = \
-            TestInternalConf.redis_node_monitor_alive_key_prefix + \
-            self.monitor_name
         self.redis_alive_key_timeout = \
             TestInternalConf.redis_node_monitor_alive_key_timeout
-        self.redis_session_index_key = \
-            TestInternalConf.redis_node_monitor_session_index_key_prefix + \
-            self.monitor_name
-        self.redis_last_height_key = \
-            TestInternalConf.redis_node_monitor_last_height_checked_key_prefix \
-            + self.monitor_name
 
     def test_load_state_changes_nothing_if_nothing_saved(self) -> None:
         self.monitor.load_state()
 
-        self.assertIsNone(self.monitor._session_index)
+        self.assertEqual(NONE, self.monitor._session_index)
         self.assertEqual(NONE, self.monitor._last_height_checked)
 
     def test_load_state_sets_values_to_saved_values(self) -> None:
         # Set Redis values manually
-        self.redis.set_unsafe(self.redis_session_index_key,
-                              self.dummy_session_index)
-        self.redis.set_unsafe(self.redis_last_height_key,
-                              self.dummy_last_height_checked)
+        key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+        key_lh = Keys.get_node_monitor_last_height_checked(self.monitor_name)
+        self.redis.set_unsafe(key_si, self.dummy_session_index)
+        self.redis.set_unsafe(key_lh, self.dummy_last_height_checked)
 
         # Load the values from Redis
         self.monitor.load_state()
@@ -1083,14 +1119,16 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
         # Save the values to Redis
         self.monitor.save_state()
 
+        key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+        key_lh = Keys.get_node_monitor_last_height_checked(self.monitor_name)
+
         # Get last update, and its timeout in Redis
-        last_update = self.redis.get(self.redis_alive_key)
-        timeout = self.redis.time_to_live(self.redis_alive_key)
+        last_update = self.redis.get(key_lh)
+        timeout = self.redis.time_to_live(key_lh)
 
         # Assert
-        self.assertEqual(self.dummy_session_index,
-                         self.redis.get_int(self.redis_session_index_key))
+        self.assertEqual(self.dummy_session_index, self.redis.get_int(key_si))
         self.assertEqual(self.dummy_last_height_checked,
-                         self.redis.get_int(self.redis_last_height_key))
+                         self.redis.get_int(key_lh))
         self.assertIsNotNone(last_update)
         self.assertEqual(timeout, self.redis_alive_key_timeout)

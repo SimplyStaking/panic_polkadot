@@ -4,8 +4,9 @@ from typing import Optional, List
 from src.alerts.alerts import Alert, \
     ProblemWhenCheckingIfCallsAreSnoozedAlert, ProblemWhenDialingNumberAlert
 from src.channels.channel import Channel, ChannelSet
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.alert_utils.twilio_api import TwilioApi
-from src.utils.redis_api import RedisApi
 
 
 class TwilioChannel(Channel):
@@ -13,21 +14,22 @@ class TwilioChannel(Channel):
     def __init__(self, channel_name: str, logger: logging.Logger,
                  redis: Optional[RedisApi], twilio: TwilioApi,
                  call_from: str, call_to: List[str], twiml: str,
-                 snooze_key: str, backup_channels: ChannelSet) -> None:
+                 twiml_is_url: bool, backup_channels: ChannelSet) -> None:
         super().__init__(channel_name, logger, redis)
 
         self._twilio = twilio
         self._call_from = call_from
         self._call_to = call_to
         self._twiml = twiml
-        self._snooze_key = snooze_key
+        self._twiml_is_url = twiml_is_url
         self._backup_channels = backup_channels
 
     def _calls_snoozed(self, logger: logging.Logger) \
             -> bool:
         if self.redis_enabled:
-            if self.redis.exists(self._snooze_key):
-                snooze_until = self.redis.get(self._snooze_key).decode("utf-8")
+            key = Keys.get_twilio_snooze()
+            if self.redis.exists(key):
+                snooze_until = self.redis.get(key).decode("utf-8")
                 logger.info('Tried to call but calls are snoozed until {}.'
                             ''.format(snooze_until))
                 return True
@@ -51,8 +53,8 @@ class TwilioChannel(Channel):
             for number in self._call_to:
                 self.logger.info("Twilio now dialing " + number)
                 try:
-                    self._twilio.dial_number(
-                        self._call_from, number, self._twiml)
+                    self._twilio.dial_number(self._call_from, number,
+                                             self._twiml, self._twiml_is_url)
                 except Exception as e:
                     self._backup_channels.alert_error(
                         ProblemWhenDialingNumberAlert(number, e))

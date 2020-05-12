@@ -8,7 +8,13 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 print('Current working directory set to ' + os.getcwd())
 
 TestInternalConf = InternalConfig(
-    'test/test_internal_config.ini')
+    'test/test_internal_config_main.ini',
+    'test/test_internal_config_alerts_all_enabled.ini')
+
+TestInternalConfSomeAlertsDisabled = InternalConfig(
+    'test/test_internal_config_main.ini',
+    'test/test_internal_config_alerts_some_disabled.ini')
+
 TestUserConf = UserConfig(
     'test/test_user_config_main.ini',
     'test/test_user_config_nodes.ini',

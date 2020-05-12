@@ -18,11 +18,11 @@ class TestConfigParser(unittest.TestCase):
             self) -> None:
 
         # Check that first file exists
-        ConfigParser(['test/test_internal_config.ini'])
+        ConfigParser(['test/test_internal_config_main.ini'])
 
         # Now check inexistent file with file that exists
         try:
-            ConfigParser(['test/test_internal_config.ini',
+            ConfigParser(['test/test_internal_config_main.ini',
                           'test/inexistent_file'])
             self.fail('Expected ConfigNotFoundException')
         except ConfigNotFoundException:

@@ -3,13 +3,13 @@ import unittest
 from datetime import timedelta
 from time import sleep
 
-import dateutil
 from redis import ConnectionError as RedisConnectionError
 
 from src.alerters.reactive.node import Node, NodeType
 from src.alerts.alerts import *
 from src.channels.channel import ChannelSet
-from src.utils.redis_api import RedisApi
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.scaling import scale_to_tera
 from src.utils.types import NONE
 from test import TestInternalConf, TestUserConf
@@ -68,7 +68,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
                               internal_conf=TestInternalConf)
 
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.dummy_exception = DummyException()
         self.dummy_bonded_balance = scale_to_tera(5)
@@ -109,7 +109,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.assertFalse(self.validator.is_down)
 
     def test_is_down_true_when_went_down_not_none(self) -> None:
-        self.validator._went_down_at = datetime.now()
+        self.validator._went_down_at = datetime.now().timestamp()
         self.assertTrue(self.validator.is_down)
 
     def test_is_active_none_by_default(self) -> None:
@@ -142,10 +142,8 @@ class TestNodeWithoutRedis(unittest.TestCase):
     def test_is_authoring_true_by_default(self) -> None:
         self.assertTrue(self.validator.is_authoring)
 
-    def test_is_no_change_in_height_warning_alert_sent_false_by_default(self) \
-            -> None:
-        self.assertFalse(
-            self.validator.is_no_change_in_height_warning_alert_sent)
+    def test_is_no_change_in_height_warning_sent_false_by_default(self) -> None:
+        self.assertFalse(self.validator.is_no_change_in_height_warning_sent)
 
     def test_finalized_block_height_zero_by_default(self) -> None:
         self.assertEqual(self.validator.finalized_block_height, 0)
@@ -1410,8 +1408,8 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.assertTrue(self.counter_channel.no_alerts())
 
-    def test_update_height_info_alert_if_increase_and_warning_alert_sent(
-            self) -> None:
+    def test_update_height_info_alert_if_increase_and_warning_sent(self) \
+            -> None:
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
 
@@ -1454,8 +1452,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.assertIsInstance(self.counter_channel.latest_alert,
                               NodeFinalizedBlockHeightHasNowBeenUpdatedAlert)
 
-    def test_update_height_unsets_warning_alert_sent_if_height_increase(
-            self) -> None:
+    def test_update_height_unsets_warning_sent_if_height_increase(self) -> None:
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
 
@@ -1469,10 +1466,9 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.validator.update_finalized_block_height(new_height, self.logger,
                                                      self.channel_set)
-        self.assertFalse(self.validator._no_change_in_height_warning_alert_sent)
+        self.assertFalse(self.validator._no_change_in_height_warning_sent)
 
-    def test_update_height_unsets_warning_alert_sent_if_height_decrease(
-            self) -> None:
+    def test_update_height_unsets_warning_sent_if_height_decrease(self) -> None:
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
 
@@ -1486,7 +1482,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.validator.update_finalized_block_height(new_height, self.logger,
                                                      self.channel_set)
-        self.assertFalse(self.validator._no_change_in_height_warning_alert_sent)
+        self.assertFalse(self.validator._no_change_in_height_warning_sent)
 
     def test_update_height_modifies_state_if_new_height(self) -> None:
         old_finalized_block_height = self.validator.finalized_block_height
@@ -1533,7 +1529,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.assertTrue(self.counter_channel.no_alerts())
 
-    def test_update_height_sets_warning_alert_sent_if_height_not_updated_warning_time_passed(
+    def test_update_height_sets_warning_sent_if_height_not_updated_warning_time_passed(
             self) -> None:
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
@@ -1543,18 +1539,16 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
 
-        self.assertTrue(
-            self.validator.is_no_change_in_height_warning_alert_sent)
+        self.assertTrue(self.validator.is_no_change_in_height_warning_sent)
 
-    def test_update_height_does_not_set_warning_alert_sent_if_height_not_updated_warning_time_not_passed(
+    def test_update_height_does_not_set_warning_sent_if_height_not_updated_warning_time_not_passed(
             self) -> None:
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
         self.validator.update_finalized_block_height(
             self.dummy_finalized_block_height, self.logger, self.channel_set)
 
-        self.assertFalse(
-            self.validator.is_no_change_in_height_warning_alert_sent)
+        self.assertFalse(self.validator.is_no_change_in_height_warning_sent)
 
     def test_update_height_critical_alert_if_validator_interval_time_passed_and_warning_sent(
             self) -> None:
@@ -1911,7 +1905,7 @@ class TestNodeWithRedis(unittest.TestCase):
         self.node_name = 'testnode'
         self.chain = 'testchain'
         self.redis_prefix = self.node_name + "@" + self.chain
-        self.date = datetime.min + timedelta(days=123)
+        self.date = datetime.now().timestamp()
         self.logger = logging.getLogger('dummy')
 
         self.db = TestInternalConf.redis_test_database
@@ -1943,6 +1937,7 @@ class TestNodeWithRedis(unittest.TestCase):
         self.validator.load_state(self.logger)
 
         self.assertFalse(self.validator.is_down)
+        self.assertIsNone(self.validator._went_down_at)
         self.assertIsNone(self.validator.bonded_balance)
         self.assertFalse(self.validator.is_syncing)
         self.assertIsNone(self.validator.no_of_peers)
@@ -1959,41 +1954,39 @@ class TestNodeWithRedis(unittest.TestCase):
                          NONE)
         self.assertIsNotNone(self.validator._time_of_last_height_change)
         self.assertEqual(self.validator.finalized_block_height, 0)
-        self.assertFalse(
-            self.validator.is_no_change_in_height_warning_alert_sent)
+        self.assertFalse(self.validator.is_no_change_in_height_warning_sent)
         self.assertEqual(self.validator.auth_index, NONE)
 
     def test_load_state_sets_values_to_saved_values(self):
         # Set Redis values manually
-        self.redis.set_unsafe(self.redis_prefix + '_went_down_at',
-                              str(self.date))
-        self.redis.set_unsafe(self.redis_prefix + '_bonded_balance', 456)
-        self.redis.set_unsafe(self.redis_prefix + '_is_syncing', str(True))
-        self.redis.set_unsafe(self.redis_prefix + '_no_of_peers', 789)
-        self.redis.set_unsafe(self.redis_prefix + '_active', str(True))
-        self.redis.set_unsafe(self.redis_prefix + '_council_member', str(True))
-        self.redis.set_unsafe(self.redis_prefix + '_elected', str(True))
-        self.redis.set_unsafe(self.redis_prefix + '_disabled', str(True))
-        self.redis.set_unsafe(self.redis_prefix + '_no_of_blocks_authored', 10)
-        self.redis.set_unsafe(self.redis_prefix + '_time_of_last_block', 12.4)
-        self.redis.set_unsafe(self.redis_prefix + '_is_authoring', str(False))
-        self.redis.set_unsafe(self.redis_prefix +
-                              '_time_of_last_block_check_activity', 123.4)
-        self.redis.set_unsafe(self.redis_prefix +
-                              '_time_of_last_height_check_activity', 456.6)
-        self.redis.set_unsafe(self.redis_prefix + '_time_of_last_height_change',
-                              35.4)
-        self.redis.set_unsafe(self.redis_prefix + '_finalized_block_height', 43)
-        self.redis.set_unsafe(self.redis_prefix +
-                              '_no_change_in_height_warning_alert_sent',
-                              str(True))
-        self.redis.set_unsafe(self.redis_prefix + '_auth_index', 45)
+        hash_name = Keys.get_hash_blockchain(self.validator.chain)
+        node = self.validator.name
+        self.redis.hset_multiple_unsafe(hash_name, {
+            Keys.get_node_went_down_at(node): str(self.date),
+            Keys.get_node_bonded_balance(node): 456,
+            Keys.get_node_is_syncing(node): str(True),
+            Keys.get_node_no_of_peers(node): 789,
+            Keys.get_node_active(node): str(True),
+            Keys.get_node_council_member(node): str(True),
+            Keys.get_node_elected(node): str(True),
+            Keys.get_node_disabled(node): str(True),
+            Keys.get_node_blocks_authored(node): 10,
+            Keys.get_node_time_of_last_block(node): 12.4,
+            Keys.get_node_is_authoring(node): str(False),
+            Keys.get_node_time_of_last_block_check_activity(node): 123.4,
+            Keys.get_node_time_of_last_height_check_activity(node): 456.6,
+            Keys.get_node_time_of_last_height_change(node): 35.4,
+            Keys.get_node_finalized_block_height(node): 43,
+            Keys.get_node_no_change_in_height_warning_sent(node): str(True),
+            Keys.get_node_auth_index(node): 45,
+        })
 
         # Load the Redis values
         self.validator.load_state(self.logger)
 
         # Assert
         self.assertTrue(self.validator.is_down)
+        self.assertEqual(self.validator._went_down_at, self.date)
         self.assertEqual(self.validator.bonded_balance, 456)
         self.assertTrue(self.validator.is_syncing)
         self.assertEqual(self.validator.no_of_peers, 789)
@@ -2010,14 +2003,16 @@ class TestNodeWithRedis(unittest.TestCase):
                          456.6)
         self.assertEqual(self.validator._time_of_last_height_change, 35.4)
         self.assertEqual(self.validator.finalized_block_height, 43)
-        self.assertTrue(
-            self.validator.is_no_change_in_height_warning_alert_sent)
+        self.assertTrue(self.validator.is_no_change_in_height_warning_sent)
         self.assertEqual(self.validator.auth_index, 45)
 
     def test_load_state_sets_blocks_authored_timer_to_last_activity_if_not_NONE(
             self) -> None:
-        self.redis.set_unsafe(self.redis_prefix +
-                              '_time_of_last_block_check_activity', 123.4)
+        hash_name = Keys.get_hash_blockchain(self.chain)
+        self.redis.hset_multiple_unsafe(hash_name, {
+            Keys.get_node_time_of_last_block_check_activity(
+                self.node_name): 123.4
+        })
         last_time = datetime.fromtimestamp(123.4)
 
         self.validator.load_state(self.logger)
@@ -2032,8 +2027,11 @@ class TestNodeWithRedis(unittest.TestCase):
 
     def test_load_state_sets_last_height_timer_to_last_activity_if_not_NONE(
             self) -> None:
-        self.redis.set_unsafe(self.redis_prefix +
-                              '_time_of_last_height_check_activity', 123.4)
+        hash_name = Keys.get_hash_blockchain(self.chain)
+        self.redis.hset_multiple_unsafe(hash_name, {
+            Keys.get_node_time_of_last_height_check_activity(
+                self.node_name): 123.4
+        })
         last_time = datetime.fromtimestamp(123.4)
 
         self.validator.load_state(self.logger)
@@ -2050,16 +2048,6 @@ class TestNodeWithRedis(unittest.TestCase):
             self) -> None:
         self.validator.load_state(self.logger)
         self.assertIsNotNone(self.validator._time_of_last_height_change)
-
-    def test_load_state_sets_went_down_at_to_none_if_incorrect_type(self):
-        # Set Redis values manually
-        self.redis.set_unsafe(self.redis_prefix + '_went_down_at', str(True))
-
-        # Load the Redis values
-        self.validator.load_state(self.logger)
-
-        # Assert
-        self.assertIsNone(self.validator._went_down_at)
 
     def test_save_state_sets_values_to_current_values(self):
         # Set node values manually
@@ -2078,49 +2066,53 @@ class TestNodeWithRedis(unittest.TestCase):
         self.validator._time_of_last_height_check_activity = 45.5
         self.validator._time_of_last_height_change = 45.5
         self.validator._finalized_block_height = 34
-        self.validator._no_change_in_height_warning_alert_sent = True
+        self.validator._no_change_in_height_warning_sent = True
         self.validator._auth_index = 45
 
         # Save the values to Redis
         self.validator.save_state(self.logger)
 
         # Assert
-        self.assertEqual(
-            dateutil.parser.parse(self.redis.get_unsafe(
-                self.redis_prefix + '_went_down_at')), self.date)
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix + '_bonded_balance'),
-            456)
-        self.assertTrue(
-            self.redis.get_bool_unsafe(self.redis_prefix + '_is_syncing'))
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix + '_no_of_peers'), 789)
-        self.assertTrue(
-            self.redis.get_bool_unsafe(self.redis_prefix + '_active'))
-        self.assertTrue(
-            self.redis.get_bool_unsafe(self.redis_prefix + '_council_member'))
-        self.assertTrue(
-            self.redis.get_bool_unsafe(self.redis_prefix + '_elected'))
-        self.assertTrue(
-            self.redis.get_bool_unsafe(self.redis_prefix + '_disabled'))
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix +
-                                      '_no_of_blocks_authored'), 10)
-        self.assertEqual(float(self.redis.get(self.redis_prefix +
-                                              '_time_of_last_block')), 1234.4)
-        self.assertFalse(
-            self.redis.get_bool_unsafe(self.redis_prefix + '_is_authoring'))
-        self.assertEqual(float(self.redis.get(
-            self.redis_prefix + '_time_of_last_block_check_activity')), 124.4)
-        self.assertEqual(float(self.redis.get(
-            self.redis_prefix + '_time_of_last_height_check_activity')), 45.5)
-        self.assertEqual(float(self.redis.get(
-            self.redis_prefix + '_time_of_last_height_change')), 45.5)
-        self.assertEqual(
-            self.redis.get_int_unsafe(
-                self.redis_prefix + '_finalized_block_height'), 34)
-        self.assertTrue(
-            self.redis.get_bool_unsafe(
-                self.redis_prefix + '_no_change_in_height_warning_alert_sent'))
-        self.assertEqual(
-            self.redis.get_int_unsafe(self.redis_prefix + '_auth_index'), 45)
+        hash_name = Keys.get_hash_blockchain(self.validator.chain)
+        self.assertEqual(float(self.redis.hget_unsafe(
+            hash_name, Keys.get_node_went_down_at(self.validator.name))),
+            self.date)
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_node_bonded_balance(self.validator.name)), 456)
+        self.assertTrue(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_is_syncing(self.validator.name)))
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_node_no_of_peers(self.validator.name)), 789)
+        self.assertTrue(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_active(self.validator.name)))
+        self.assertTrue(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_council_member(self.validator.name)))
+        self.assertTrue(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_elected(self.validator.name)))
+        self.assertTrue(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_disabled(self.validator.name)))
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_node_blocks_authored(self.validator.name)), 10)
+        self.assertEqual(float(self.redis.hget(
+            hash_name, Keys.get_node_time_of_last_block(self.validator.name))),
+            1234.4)
+        self.assertFalse(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_is_authoring(self.validator.name)))
+        self.assertEqual(float(self.redis.hget(
+            hash_name, Keys.get_node_time_of_last_block_check_activity(
+                self.validator.name))), 124.4)
+        self.assertEqual(float(self.redis.hget(
+            hash_name, Keys.get_node_time_of_last_height_check_activity(
+                self.validator.name))), 45.5)
+        self.assertEqual(float(self.redis.hget(
+            hash_name,
+            Keys.get_node_time_of_last_height_change(self.validator.name))),
+            45.5)
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name,
+            Keys.get_node_finalized_block_height(self.validator.name)), 34)
+        self.assertTrue(self.redis.hget_bool_unsafe(
+            hash_name, Keys.get_node_no_change_in_height_warning_sent(
+                self.validator.name)))
+        self.assertEqual(self.redis.hget_int_unsafe(
+            hash_name, Keys.get_node_auth_index(self.validator.name)), 45)

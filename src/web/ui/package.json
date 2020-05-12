@@ -1,0 +1,63 @@
+{
+  "name": "panic-polkadot-ui",
+  "version": "1.0.0",
+  "description": "UI in React for PANIC for Polkadot",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SimplyVC/panic_polkadot.git"
+  },
+  "private": true,
+  "author": "Dylan Galea",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.26",
+    "@fortawesome/free-solid-svg-icons": "^5.12.0",
+    "@fortawesome/react-fontawesome": "^0.1.8",
+    "airbnb-prop-types": "^2.15.0",
+    "axios": "^0.19.2",
+    "bootstrap": "^4.4.1",
+    "configparser": "^0.3.6",
+    "eslint": "^6.8.0",
+    "express": "^4.17.1",
+    "font-awesome": "^4.7.0",
+    "md5": "^2.2.1",
+    "moment": "^2.24.0",
+    "mongodb": "^3.5.4",
+    "nodemailer": "^6.4.6",
+    "prop-types": "^15.7.2",
+    "react": "^16.12.0",
+    "react-bootstrap": "^1.0.0",
+    "react-collapsible": "^2.6.2",
+    "react-dom": "^16.12.0",
+    "react-router-dom": "^5.0.1",
+    "react-scripts": "^3.4.1",
+    "react-toasts": "^3.0.6",
+    "redis": "^3.0.2",
+    "twilio": "^3.42.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb": "^17.1.1",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-jsx-a11y": "^6.2.3",
+    "eslint-plugin-react": "^7.16.0"
+  },
+  "scripts": {
+    "start": "set PORT=3006 && react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
