@@ -4,8 +4,8 @@ from typing import Optional
 
 from src.alerts.alerts import Alert, ProblemWithMongo
 from src.channels.channel import Channel, ChannelSet
-from src.utils.mongo_api import MongoApi
-from src.utils.redis_api import RedisApi
+from src.store.mongo.mongo_api import MongoApi
+from src.store.redis.redis_api import RedisApi
 
 
 class MongoChannel(Channel):
@@ -26,7 +26,7 @@ class MongoChannel(Channel):
                 'origin': self.channel_name,
                 'severity': severity,
                 'message': alert.message,
-                'timestamp': datetime.now()
+                'timestamp': datetime.now().timestamp()
             })
             # TODO: add checks around 'ret', if necessary
         except Exception as e:

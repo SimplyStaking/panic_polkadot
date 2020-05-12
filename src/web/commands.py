@@ -2,19 +2,18 @@ import logging
 from typing import Optional, Dict, List
 
 from src.alerters.reactive.node import Node
+from src.store.mongo.mongo_api import MongoApi
+from src.store.redis.redis_api import RedisApi
 from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.config_parsers.user import UserConfig
 from src.utils.config_parsers.user_parsed import UserConf
-from src.utils.redis_api import RedisApi
 
 
 class Commands:
 
     def __init__(self, logger: logging.Logger, redis: Optional[RedisApi],
-                 redis_snooze_key: Optional[str], redis_mute_key: Optional[str],
-                 redis_node_monitor_alive_key_prefix: Optional[str],
-                 redis_blockchain_monitor_alive_key_prefix: Optional[str],
+                 mongo: Optional[MongoApi],
                  node_monitor_nodes_by_chain: Dict[str, List[Node]],
                  archive_alerts_disabled_by_chain: Dict[str, bool],
                  internal_conf: InternalConfig = InternalConf,
@@ -22,13 +21,9 @@ class Commands:
         self._logger = logger
 
         self._redis = redis
+        self._mongo = mongo
+
         self._redis_enabled = redis is not None
-        self._redis_snooze_key = redis_snooze_key
-        self._redis_mute_key = redis_mute_key
-        self._redis_node_monitor_alive_key_prefix = \
-            redis_node_monitor_alive_key_prefix
-        self._redis_blockchain_monitor_alive_key_prefix = \
-            redis_blockchain_monitor_alive_key_prefix
 
         # Whether archive alerts disabled for the chain that a node is running
         self._archive_alerts_disabled_for_chain_by_node = {}

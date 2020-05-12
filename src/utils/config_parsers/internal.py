@@ -2,16 +2,28 @@ import configparser
 import sys
 from datetime import timedelta
 
+from src.alerts.alerts import AlertCode, SeverityCode
 from src.utils.config_parsers.config_parser import ConfigParser
+from src.utils.config_parsers.user import to_bool
+
+
+def to_bool(bool_str: str) -> bool:
+    return bool_str.lower() in ['true', 'yes', 'y']
 
 
 class InternalConfig(ConfigParser):
     # Use internal_parsed.py rather than creating a new instance of this class
-    def __init__(self, config_file_path: str) -> None:
-        super().__init__([config_file_path])
+    def __init__(self, main_config_file_path: str,
+                 alerts_config_file_path: str) -> None:
+        super().__init__([main_config_file_path,
+                          alerts_config_file_path])
 
         cp = configparser.ConfigParser()
-        cp.read(config_file_path)
+        cp.optionxform = str  # to preserve case of keys
+        cp.read(main_config_file_path)
+        cp.read(alerts_config_file_path)
+
+        # ------------------------ Main Config
 
         # [logging]
         section = cp['logging']
@@ -33,7 +45,8 @@ class InternalConfig(ConfigParser):
 
         # [twilio]
         section = cp['twilio']
-        self.twiml_instructions_url = section['twiml_instructions_url']
+        self.twiml = section['twiml']
+        self.twiml_is_url = to_bool(section['twiml_is_url'])
 
         # [mongo]
         section = cp['mongo']
@@ -43,20 +56,6 @@ class InternalConfig(ConfigParser):
         section = cp['redis']
         self.redis_database = int(section['redis_database'])
         self.redis_test_database = int(section['redis_test_database'])
-
-        self.redis_twilio_snooze_key = section['redis_twilio_snooze_key']
-        self.redis_github_releases_key_prefix = section[
-            'redis_github_releases_key_prefix']
-        self.redis_node_monitor_alive_key_prefix = section[
-            'redis_node_monitor_alive_key_prefix']
-        self.redis_node_monitor_session_index_key_prefix = section[
-            'redis_node_monitor_session_index_key_prefix']
-        self.redis_node_monitor_last_height_checked_key_prefix = section[
-            'redis_node_monitor_last_height_checked_key_prefix']
-        self.redis_blockchain_monitor_alive_key_prefix = section[
-            'redis_blockchain_monitor_alive_key_prefix']
-        self.redis_periodic_alive_reminder_mute_key = \
-            section['redis_periodic_alive_reminder_mute_key']
 
         self.redis_twilio_snooze_key_default_hours = timedelta(hours=float(
             section['redis_twilio_snooze_key_default_hours']))
@@ -120,6 +119,45 @@ class InternalConfig(ConfigParser):
 
         self.github_releases_template = section['github_releases_template']
 
+        # ------------------------ Alerts Config
+
+        # [severities_enabled_disabled]
+        self.severities_enabled_map = {
+            SeverityCode.INFO.name:
+                to_bool(cp['severities_enabled_disabled']["Info"]),
+            SeverityCode.WARNING.name:
+                to_bool(cp['severities_enabled_disabled']["Warning"]),
+            SeverityCode.CRITICAL.name:
+                to_bool(cp['severities_enabled_disabled']["Critical"]),
+            SeverityCode.ERROR.name:
+                to_bool(cp['severities_enabled_disabled']["Error"]),
+        }
+
+        # Remaining sections (ending with _alerts_enabled_disabled)
+        self.alerts_enabled_map = {}
+        self.alerts_enabled_disabled_sections = \
+            [s for s in cp.sections() if s.endswith("_alerts_enabled_disabled")]
+        for s in self.alerts_enabled_disabled_sections:
+            for alert in cp[s]:
+                self.alerts_enabled_map[alert] = \
+                    to_bool(cp[s][alert])
+
+        # Check that map has all possible alerts
+        for ac in AlertCode:
+            if ac.name not in self.alerts_enabled_map:
+                print('Missing alert {} from alerts config.'.format(ac.name))
+                sys.exit(-1)
+
+        # Check that map has no extra alerts
+        all_alert_codes = [ac.name for ac in AlertCode]
+        try:
+            extra_alert = next(a for a in self.alerts_enabled_map.keys()
+                               if a not in all_alert_codes)
+            print('WARNING: Extra alert {} in alerts config. PANIC will '
+                  'ignore this and continue normally.'.format(extra_alert))
+        except StopIteration:
+            pass  # If no extra alert found, this is a good thing
+
     # Safe boundary must be greater than danger boundary at all times for
     # correct execution
     def _peer_safe_and_danger_boundaries_are_valid(self) -> bool:
@@ -131,7 +169,7 @@ class InternalConfig(ConfigParser):
             print("validator_peer_safe_boundary must be STRICTLY GREATER than "
                   "validator_peer_danger_boundary for correct execution."
                   "\nPlease do the necessary modifications in the "
-                  "config/internal_config.ini file and restart the alerter.")
+                  "config/internal_config_main.ini file and restart the alerter.")
             sys.exit(-1)
 
     # The warning value must be less than the interval value at all times for
@@ -146,5 +184,5 @@ class InternalConfig(ConfigParser):
                 "no_change_in_height_interval_seconds must be STRICTLY GREATER "
                 "than no_change_in_height_first_warning_seconds for correct "
                 "execution.\nPlease do the necessary modifications in the "
-                "config/internal_config.ini file and restart the alerter.")
+                "config/internal_config_main.ini file and restart the alerter.")
             sys.exit(-1)

@@ -4,6 +4,77 @@
 
 <!--New features/improvements/fixes go here-->
 
+## 2.0.0
+
+Released on 12th May 2020
+
+First things first, this new version of PANIC is now **compatible with the latest changes in the [Polkadot API](https://polkadot.js.org/api/)**, and is packed with new features.
+
+Users can now install our brand new **Web UI** to view the status of the nodes, alerter and view alerts in real-time. The Web UI can also be used for much simpler setting up and reconfiguration of PANIC, including switching on/off specific alerts.
+
+But this is not all. Redis keys are now much more efficient and organized using **hash-based functions**, and we also included **Mongo's status in Telegram**.
+
+As a way to facilitate the life of users running PANIC using docker, we also improved PANIC's docker installation using **docker-compose**.
+
+### Breaking Changes
+
+* (redis) Nodes, blockchains, GitHub repositories, and monitor keys have been changed as a result of improvements in the use of Redis keys
+
+### Polkadot API Compatibility Changes
+
+* (data wrapper) PANIC is now using different endpoints from the [Polkadot API server](https://github.com/SimplyVC/polkadot_api_server) due to changes in the [polkadot-js/api](https://github.com/polkadot-js/api)
+    * To get the set of elected validators for the next session, PANIC is now using the `/api/derive/staking/validators` endpoint instead of the `/api/query/staking/currentElected` endpoint.
+    * To get the bonded balance of a validator, PANIC is now using the `/api/query/staking/erasStakers` endpoint instead of the `/api/query/staking/stakers` endpoint.
+* (parsing) Some monitors are now expecting different JSON structures from the [Polkadot API server](https://github.com/SimplyVC/polkadot_api_server) due to updates in the [polkadot-js/api](https://github.com/polkadot-js/api).
+    * For ongoing referendums, the blockchain monitor expects the `/api/query/democracy/referendumInfoOf` endpoint to return a JSON with the following structure:
+      ```
+      {
+            'Ongoing': {
+                'proposalHash': '0x345jtg8ergfg8df89h9we9t9sd9g9gsd9g9sdfg',
+                'end': 124143848,
+                'threshold': 'Supermajorityapproval',
+                'delay': 11549,
+                'tally': {
+                    'ayes': '4544545 KSM',
+                    'nayes': '3454 KSM',
+                    'turnout': '4545454454 KSM'
+                }
+            }
+        }
+      ```
+
+### Features
+
+* (alerts) Added ability to switch on/off specific alerts via the alerts internal config (`internal_config_alerts.ini`)
+* (web) Added the full implementation of the Web UI for PANIC. The operator can use this UI in the following ways:
+    * Use the `Dashboard` page to view the status of the nodes, chains and monitors.
+    * Use the `Alerts` &rightarrow; `Logs` page to view incoming alerts. The operator can also view historical alerts by navigating through this page.
+    * Use the `Settings` &rightarrow; (`Main`, `Nodes`, `Repos`) pages to create the `user_config_main.ini`, `user_config_nodes.ini`, `user_config_repos.ini` files respectively. This facilitates the setting up process of PANIC.
+    * Use the `Alerts` &rightarrow; `Preferences` page to switch on/off specific alerts. The operator can also switch off alerts of a particular severity.
+* (redis) Added hash-based `hset`/`hget` functions (and variations) to the Redis API
+* (telegram) Added Mongo's status in the Telegram `/status` output.
+* (docker) Dockerised the Web UI
+* (docker) Added the functionality of using docker-compose to run the Web UI, Alerter, Mongo and Redis.
+    * Each component is able to restart automatically if it runs into an erroneous state and crashes.
+
+### Improvements
+
+* (twilio) Added official support for [TwiML](https://www.twilio.com/docs/voice/twiml). Configurable from the internal config to either a URL or raw TwiML instructions
+* (redis) Centralised and streamlined Redis key usage in a new `store_keys.Keys` class
+* (redis) Keys for nodes from a blockchain and the blockchain itself are now grouped using hashes (`hset`/`hget`)
+* (redis) Reduced code duplication in Redis API by defining a `_safe` function with common error-handling and default return value functionality
+* (timing) PANIC now saves date & time values in the store as UTC timestamps instead of datetime
+
+### Bug Fixes
+
+* (setup) Repository names are now forced to be unique during setup. This is necessary to prevent key clashes in Redis
+
+### Other
+
+* Renamed `internal_config.ini` to `internal_config_main.ini`
+* Moved RedisApi and MongoApi to `store/` folder to match PANIC's design
+* Updated the documentation to be compatible with the latest changes.
+
 ## 1.1.0
 
 Released on 21st February 2020

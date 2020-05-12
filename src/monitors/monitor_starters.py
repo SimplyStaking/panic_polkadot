@@ -76,8 +76,9 @@ def start_node_monitor(node_monitor: NodeMonitor, monitor_period: int,
                     node_monitor.monitor_name,
                     node_monitor.channels)
             except (
-            http.client.IncompleteRead, urllib3.exceptions.IncompleteRead,
-            ApiCallFailedException) as e:
+                    http.client.IncompleteRead,
+                    urllib3.exceptions.IncompleteRead,
+                    ApiCallFailedException) as e:
                 logger.error(e)
                 logger.error("Alerter will continue running normally.")
             except (UnexpectedApiCallErrorException,

@@ -3,8 +3,8 @@ from typing import Optional, List
 
 from src.alerts.alerts import Alert
 from src.channels.channel import Channel
+from src.store.redis.redis_api import RedisApi
 from src.utils.alert_utils.email_sending import EmailSender
-from src.utils.redis_api import RedisApi
 
 
 class EmailChannel(Channel):

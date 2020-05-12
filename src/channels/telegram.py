@@ -3,8 +3,8 @@ from typing import Optional
 
 from src.alerts.alerts import Alert, ProblemWithTelegramBot
 from src.channels.channel import Channel, ChannelSet
+from src.store.redis.redis_api import RedisApi
 from src.utils.alert_utils.telegram_bot_api import TelegramBotApi
-from src.utils.redis_api import RedisApi
 
 
 class TelegramChannel(Channel):

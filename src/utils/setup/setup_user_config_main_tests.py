@@ -1,13 +1,13 @@
 from enum import Enum
 
+from src.store.mongo.mongo_api import MongoApi
+from src.store.redis.redis_api import RedisApi
 from src.utils.alert_utils.email_sending import EmailSender
 from src.utils.alert_utils.telegram_bot_api import TelegramBotApi
 from src.utils.alert_utils.twilio_api import TwilioApi
 from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.logging import DUMMY_LOGGER
-from src.utils.mongo_api import MongoApi
-from src.utils.redis_api import RedisApi
 from src.utils.user_input import yn_prompt
 from src.web.telegram.telegram_handler import TelegramCommandHandler
 
@@ -61,8 +61,8 @@ def test_twilio_alerts(twilio_no: str, to_dial: str, twilio_api: TwilioApi,
                        internal_conf: InternalConfig = InternalConf) \
         -> TestOutcome:
     try:
-        twilio_api.dial_number(twilio_no, to_dial,
-                               internal_conf.twiml_instructions_url)
+        twilio_api.dial_number(twilio_no, to_dial, internal_conf.twiml,
+                               internal_conf.twiml_is_url)
         print('Test phone call requested successfully. Please wait a bit.')
 
         if yn_prompt('Did you receive the test phone call? (Y/n)\n'):

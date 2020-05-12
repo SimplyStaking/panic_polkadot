@@ -1,16 +1,14 @@
 import logging
 from datetime import timedelta
-from enum import Enum
 from typing import Optional
-
-import dateutil.parser
 
 from src.alerts.alerts import *
 from src.channels.channel import ChannelSet
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import *
 from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.datetime import strfdelta
-from src.utils.redis_api import RedisApi
 from src.utils.scaling import scale_to_tera, scale_to_pico
 from src.utils.timing import TimedTaskLimiter
 from src.utils.types import NONE
@@ -35,7 +33,7 @@ class Node:
         self._chain = chain
         self._redis = redis
         self._redis_enabled = redis is not None
-        self._redis_prefix = self.name + "@" + self._chain
+        self._redis_hash = Keys.get_hash_blockchain(self.chain)
 
         self._went_down_at = None
         self._bonded_balance = None
@@ -43,7 +41,7 @@ class Node:
         self._no_of_peers = None
         self._initial_downtime_alert_sent = False
 
-        self._no_change_in_height_warning_alert_sent = False
+        self._no_change_in_height_warning_sent = False
         self._active = None
         self._disabled = None
         self._elected = None
@@ -158,8 +156,8 @@ class Node:
         return self._is_authoring
 
     @property
-    def is_no_change_in_height_warning_alert_sent(self) -> bool:
-        return self._no_change_in_height_warning_alert_sent
+    def is_no_change_in_height_warning_sent(self) -> bool:
+        return self._no_change_in_height_warning_sent
 
     @property
     def finalized_block_height(self) -> int:
@@ -207,45 +205,49 @@ class Node:
     def load_state(self, logger: logging.Logger) -> None:
         # If Redis is enabled, load any previously stored state
         if self._redis_enabled:
-            self._went_down_at = self._redis.get(
-                self._redis_prefix + '_went_down_at', None)
-            self._bonded_balance = self._redis.get_int(
-                self._redis_prefix + '_bonded_balance', None)
-            self._is_syncing = self._redis.get_bool(
-                self._redis_prefix + '_is_syncing', False)
-            self._no_of_peers = self._redis.get_int(
-                self._redis_prefix + '_no_of_peers', None)
-            self._active = self._redis.get_bool(self._redis_prefix +
-                                                '_active', None)
-            self._council_member = self._redis.get_bool(self._redis_prefix +
-                                                        '_council_member',
-                                                        None)
-            self._elected = self._redis.get_bool(self._redis_prefix +
-                                                 '_elected', None)
-            self._disabled = self._redis.get_bool(self._redis_prefix +
-                                                  '_disabled', None)
-            self._no_of_blocks_authored = self._redis.get_int(
-                self._redis_prefix + '_no_of_blocks_authored', 0)
-            self._time_of_last_block = float(self._redis.get(
-                self._redis_prefix + '_time_of_last_block', NONE))
-            self._is_authoring = \
-                self._redis.get_bool(self._redis_prefix + '_is_authoring', True)
-            self._time_of_last_block_check_activity = float(self._redis.get(
-                self._redis_prefix + '_time_of_last_block_check_activity',
+            self._went_down_at = self._redis.hget(
+                self._redis_hash, Keys.get_node_went_down_at(self.name), None)
+            self._bonded_balance = self._redis.hget_int(
+                self._redis_hash, Keys.get_node_bonded_balance(self.name), None)
+            self._is_syncing = self._redis.hget_bool(
+                self._redis_hash, Keys.get_node_is_syncing(self.name), False)
+            self._no_of_peers = self._redis.hget_int(
+                self._redis_hash, Keys.get_node_no_of_peers(self.name), None)
+            self._active = self._redis.hget_bool(
+                self._redis_hash, Keys.get_node_active(self.name), None)
+            self._council_member = self._redis.hget_bool(
+                self._redis_hash, Keys.get_node_council_member(self.name), None)
+            self._elected = self._redis.hget_bool(
+                self._redis_hash, Keys.get_node_elected(self.name), None)
+            self._disabled = self._redis.hget_bool(
+                self._redis_hash, Keys.get_node_disabled(self.name), None)
+            self._no_of_blocks_authored = self._redis.hget_int(
+                self._redis_hash, Keys.get_node_blocks_authored(self.name), 0)
+            self._time_of_last_block = float(self._redis.hget(
+                self._redis_hash,
+                Keys.get_node_time_of_last_block(self.name), NONE))
+            self._is_authoring = self._redis.hget_bool(
+                self._redis_hash, Keys.get_node_is_authoring(self.name), True)
+            self._time_of_last_block_check_activity = float(self._redis.hget(
+                self._redis_hash,
+                Keys.get_node_time_of_last_block_check_activity(self.name),
                 NONE))
-            self._time_of_last_height_check_activity = float(self._redis.get(
-                self._redis_prefix + '_time_of_last_height_check_activity',
+            self._time_of_last_height_check_activity = float(self._redis.hget(
+                self._redis_hash,
+                Keys.get_node_time_of_last_height_check_activity(self.name),
                 NONE))
-            self._time_of_last_height_change = float(self._redis.get(
-                self._redis_prefix + '_time_of_last_height_change',
-                NONE))
-            self._finalized_block_height = self._redis.get_int(
-                self._redis_prefix + '_finalized_block_height', 0)
-            self._no_change_in_height_warning_alert_sent = self._redis.get_bool(
-                self._redis_prefix + '_no_change_in_height_warning_alert_sent',
+            self._time_of_last_height_change = float(self._redis.hget(
+                self._redis_hash,
+                Keys.get_node_time_of_last_height_change(self.name), NONE))
+            self._finalized_block_height = self._redis.hget_int(
+                self._redis_hash,
+                Keys.get_node_finalized_block_height(self.name), 0)
+            self._no_change_in_height_warning_sent = self._redis.hget_bool(
+                self._redis_hash,
+                Keys.get_node_no_change_in_height_warning_sent(self.name),
                 False)
-            self._auth_index = self._redis.get_int(
-                self._redis_prefix + '_auth_index', NONE)
+            self._auth_index = self._redis.hget_int(
+                self._redis_hash, Keys.get_node_auth_index(self.name), NONE)
 
             if self._time_of_last_block_check_activity != NONE:
                 self.blocks_authored_alert_limiter. \
@@ -262,15 +264,9 @@ class Node:
                 self._finalized_height_alert_limiter.did_task()
                 self._time_of_last_height_change = datetime.now().timestamp()
 
-            # String to actual values
+            # To avoid the return of byte hget values.
             if self._went_down_at is not None:
-                try:
-                    self._went_down_at = \
-                        dateutil.parser.parse(self._went_down_at)
-                except (TypeError, ValueError) as e:
-                    logger.error('Error when parsing '
-                                 '_went_down_at: %s', e)
-                    self._went_down_at = None
+                self._went_down_at = float(self._went_down_at)
 
             logger.debug(
                 'Restored %s state: _went_down_at=%s,  _bonded_balance=%s, '
@@ -281,7 +277,7 @@ class Node:
                 '_time_of_last_height_change=%s, '
                 '_time_of_last_height_check_activity, '
                 '_finalized_block_height=%s,'
-                ' _no_change_in_height_warning_alert_sent=%s, _auth_index=%s',
+                ' _no_change_in_height_warning_sent=%s, _auth_index=%s',
                 self.name, self._went_down_at, self._bonded_balance,
                 self._is_syncing, self._no_of_peers, self._active,
                 self._council_member, self._elected, self._disabled,
@@ -290,7 +286,7 @@ class Node:
                 self._time_of_last_height_change,
                 self._time_of_last_height_check_activity,
                 self._finalized_block_height,
-                self._no_change_in_height_warning_alert_sent, self._auth_index)
+                self._no_change_in_height_warning_sent, self._auth_index)
 
     def save_state(self, logger: logging.Logger) -> None:
         # If Redis is enabled, store the current state
@@ -304,7 +300,7 @@ class Node:
                 '_time_of_last_height_change=%s, '
                 '_time_of_last_height_check_activity, '
                 '_finalized_block_height=%s,'
-                ' _no_change_in_height_warning_alert_sent=%s, _auth_index=%s',
+                ' _no_change_in_height_warning_sent=%s, _auth_index=%s',
                 self.name, self._went_down_at, self._bonded_balance,
                 self._is_syncing, self._no_of_peers, self._active,
                 self._council_member, self._elected, self._disabled,
@@ -313,35 +309,35 @@ class Node:
                 self._time_of_last_height_change,
                 self._time_of_last_height_check_activity,
                 self._finalized_block_height,
-                self._no_change_in_height_warning_alert_sent, self._auth_index)
+                self._no_change_in_height_warning_sent, self._auth_index)
 
             # Set values
-            self._redis.set_multiple({
-                self._redis_prefix + '_went_down_at': str(self._went_down_at),
-                self._redis_prefix + '_bonded_balance': self._bonded_balance,
-                self._redis_prefix + '_is_syncing': str(self._is_syncing),
-                self._redis_prefix + '_no_of_peers': self._no_of_peers,
-                self._redis_prefix + '_active': str(self._active),
-                self._redis_prefix + '_council_member':
+            self._redis.hset_multiple(self._redis_hash, {
+                Keys.get_node_went_down_at(self.name): str(self._went_down_at),
+                Keys.get_node_bonded_balance(self.name): self._bonded_balance,
+                Keys.get_node_is_syncing(self.name): str(self._is_syncing),
+                Keys.get_node_no_of_peers(self.name): self._no_of_peers,
+                Keys.get_node_active(self.name): str(self._active),
+                Keys.get_node_council_member(self.name):
                     str(self._council_member),
-                self._redis_prefix + '_elected': str(self._elected),
-                self._redis_prefix + '_disabled': str(self._disabled),
-                self._redis_prefix + '_no_of_blocks_authored':
+                Keys.get_node_elected(self.name): str(self._elected),
+                Keys.get_node_disabled(self.name): str(self._disabled),
+                Keys.get_node_blocks_authored(self.name):
                     self._no_of_blocks_authored,
-                self._redis_prefix + '_time_of_last_block':
+                Keys.get_node_time_of_last_block(self.name):
                     self._time_of_last_block,
-                self._redis_prefix + '_is_authoring': str(self._is_authoring),
-                self._redis_prefix + '_time_of_last_block_check_activity':
+                Keys.get_node_is_authoring(self.name): str(self._is_authoring),
+                Keys.get_node_time_of_last_block_check_activity(self.name):
                     self._time_of_last_block_check_activity,
-                self._redis_prefix + '_time_of_last_height_check_activity':
+                Keys.get_node_time_of_last_height_check_activity(self.name):
                     self._time_of_last_height_check_activity,
-                self._redis_prefix + '_time_of_last_height_change':
+                Keys.get_node_time_of_last_height_change(self.name):
                     self._time_of_last_height_change,
-                self._redis_prefix + '_finalized_block_height':
+                Keys.get_node_finalized_block_height(self.name):
                     self._finalized_block_height,
-                self._redis_prefix + '_no_change_in_height_warning_alert_sent':
-                    str(self._no_change_in_height_warning_alert_sent),
-                self._redis_prefix + '_auth_index': self._auth_index
+                Keys.get_node_no_change_in_height_warning_sent(self.name):
+                    str(self._no_change_in_height_warning_sent),
+                Keys.get_node_auth_index(self.name): self._auth_index
             })
 
     def set_as_down(self, channels: ChannelSet, logger: logging.Logger) -> None:
@@ -358,19 +354,20 @@ class Node:
             self._downtime_alert_limiter.did_task()
             self._initial_downtime_alert_sent = True
         elif self.is_down and self._downtime_alert_limiter.can_do_task():
-            downtime = strfdelta(datetime.now() - self._went_down_at,
+            went_down_at = datetime.fromtimestamp(self._went_down_at)
+            downtime = strfdelta(datetime.now() - went_down_at,
                                  "{hours}h, {minutes}m, {seconds}s")
             if self.is_validator:
                 channels.alert_critical(StillCannotAccessNodeAlert(
-                    self.name, self._went_down_at, downtime))
+                    self.name, went_down_at, downtime))
             else:
                 channels.alert_warning(StillCannotAccessNodeAlert(
-                    self.name, self._went_down_at, downtime))
+                    self.name, went_down_at, downtime))
             self._downtime_alert_limiter.did_task()
         elif not self.is_down:
             # Do not alert for now just in case this is a connection hiccup
             channels.alert_info(ExperiencingDelaysAlert(self.name))
-            self._went_down_at = datetime.now()
+            self._went_down_at = datetime.now().timestamp()
             self._initial_downtime_alert_sent = False
 
     def set_as_up(self, channels: ChannelSet, logger: logging.Logger) -> None:
@@ -382,10 +379,11 @@ class Node:
         if self.is_down:
             # Only send accessible alert if inaccessible alert was sent
             if self._initial_downtime_alert_sent:
-                downtime = strfdelta(datetime.now() - self._went_down_at,
+                went_down_at = datetime.fromtimestamp(self._went_down_at)
+                downtime = strfdelta(datetime.now() - went_down_at,
                                      "{hours}h, {minutes}m, {seconds}s")
                 channels.alert_info(NowAccessibleAlert(
-                    self.name, self._went_down_at, downtime))
+                    self.name, went_down_at, downtime))
 
             # Reset downtime-related values
             self._downtime_alert_limiter.reset()
@@ -606,8 +604,8 @@ class Node:
 
         current_timestamp = datetime.now().timestamp()
         if self._finalized_block_height != new_finalized_height:
-            if self.is_no_change_in_height_warning_alert_sent:
-                self._no_change_in_height_warning_alert_sent = False
+            if self.is_no_change_in_height_warning_sent:
+                self._no_change_in_height_warning_sent = False
                 channels.alert_info(
                     NodeFinalizedBlockHeightHasNowBeenUpdatedAlert(self.name))
             if self._finalized_block_height > new_finalized_height:
@@ -624,15 +622,15 @@ class Node:
             time_interval = strfdelta(timedelta(seconds=int(
                 timestamp_difference)), "{hours}h, {minutes}m, {seconds}s")
 
-            if not self.is_no_change_in_height_warning_alert_sent and \
+            if not self.is_no_change_in_height_warning_sent and \
                     timestamp_difference > \
                     self._no_change_in_height_first_warning_seconds:
-                self._no_change_in_height_warning_alert_sent = True
+                self._no_change_in_height_warning_sent = True
                 channels.alert_warning(
                     NodeFinalizedBlockHeightDidNotChangeInAlert(self.name,
                                                                 time_interval))
             elif self._finalized_height_alert_limiter.can_do_task() and \
-                    self.is_no_change_in_height_warning_alert_sent:
+                    self.is_no_change_in_height_warning_sent:
                 if self.is_validator:
                     channels.alert_critical(
                         NodeFinalizedBlockHeightDidNotChangeInAlert(

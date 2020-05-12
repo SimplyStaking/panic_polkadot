@@ -11,11 +11,13 @@ from src.monitors.github import GitHubMonitor
 from src.monitors.monitor_starters import start_node_monitor, \
     start_github_monitor, start_blockchain_monitor
 from src.monitors.node import NodeMonitor
+from src.store.mongo.mongo_api import MongoApi
+from src.store.redis.redis_api import RedisApi
 from src.utils.alert_utils.get_channel_set import get_full_channel_set
 from src.utils.alert_utils.get_channel_set import \
     get_periodic_alive_reminder_channel_set
 from src.utils.config_parsers.internal_parsed import InternalConf, \
-    INTERNAL_CONFIG_FILE, INTERNAL_CONFIG_FILE_FOUND
+    MISSING_INTERNAL_CONFIG_FILES
 from src.utils.config_parsers.user import NodeConfig, RepoConfig
 from src.utils.config_parsers.user_parsed import UserConf, \
     MISSING_USER_CONFIG_FILES
@@ -23,24 +25,29 @@ from src.utils.data_wrapper.polkadot_api import PolkadotApiWrapper
 from src.utils.exceptions import *
 from src.utils.get_json import get_json
 from src.utils.logging import create_logger
-from src.utils.mongo_api import MongoApi
-from src.utils.redis_api import RedisApi
 from src.web.telegram.telegram import TelegramCommands
 
 
 def log_and_print(text: str):
     logger_general.info(text)
     print(text)
+    sys.stdout.flush()
 
 
 def node_from_node_config(node_config: NodeConfig):
-    # Test connection
+    # Test connection and match-up chain name
     log_and_print('Trying to retrieve data from the API of {}'.format(
         node_config.node_name))
     try:
-        chain = polkadot_api_data_wrapper.get_system_chain(
+        actual_chain = polkadot_api_data_wrapper.get_system_chain(
             node_config.node_ws_url)
         log_and_print('Success.')
+        if actual_chain != node_config.chain_name:
+            log_and_print(
+                'WARNING: actual chain name of {} is \"{}\" not \"{}\". PANIC '
+                'will continue using the supplied chain name \"{}\".'.format(
+                    node_config.node_name, actual_chain,
+                    node_config.chain_name, node_config.chain_name))
     except Exception as e:
         logger_general.error(e)
         raise InitialisationException(
@@ -57,7 +64,7 @@ def node_from_node_config(node_config: NodeConfig):
     # exception is thrown.
     if node_config.node_is_validator:
         try:
-            polkadot_api_data_wrapper.get_stakers(
+            polkadot_api_data_wrapper.get_eras_stakers(
                 node_config.node_ws_url, node_config.stash_account_address)
         except InvalidStashAccountAddressException as e:
             logger_general.error(e.message)
@@ -70,8 +77,8 @@ def node_from_node_config(node_config: NodeConfig):
 
     # Initialise node and load any state
     node = Node(node_config.node_name, node_config.node_ws_url, node_type,
-                node_config.stash_account_address, chain, REDIS,
-                node_config.is_archive_node, internal_conf=InternalConf)
+                node_config.stash_account_address, node_config.chain_name,
+                REDIS, node_config.is_archive_node, internal_conf=InternalConf)
     node.load_state(logger_general)
 
     # Return node
@@ -138,7 +145,6 @@ def run_monitor_nodes(node: Node):
     while True:
         # Start
         log_and_print('{} started.'.format(monitor_name))
-        sys.stdout.flush()
         try:
             start_node_monitor(node_monitor,
                                InternalConf.node_monitor_period_seconds,
@@ -188,7 +194,6 @@ def run_monitor_blockchain(blockchain_nodes_tuple: Tuple[str, List[Node]]):
     while True:
         # Start
         log_and_print('{} started'.format(monitor_name))
-        sys.stdout.flush()
         try:
             start_blockchain_monitor(
                 blockchain_monitor,
@@ -217,16 +222,11 @@ def run_commands_telegram():
     while True:
         # Start
         log_and_print('{} started.'.format(monitor_name))
-        sys.stdout.flush()
         try:
             TelegramCommands(
                 UserConf.telegram_cmds_bot_token,
                 UserConf.telegram_cmds_bot_chat_id,
-                logger_commands_telegram, REDIS,
-                InternalConf.redis_twilio_snooze_key,
-                InternalConf.redis_periodic_alive_reminder_mute_key,
-                InternalConf.redis_node_monitor_alive_key_prefix,
-                InternalConf.redis_blockchain_monitor_alive_key_prefix,
+                logger_commands_telegram, REDIS, MONGO,
                 node_monitor_nodes_by_chain, archive_alerts_disabled_by_chain,
             ).start_listening()
         except Exception as e:
@@ -254,8 +254,7 @@ def run_monitor_github(repo_config: RepoConfig):
         # Initialise monitor
         github_monitor = GitHubMonitor(
             monitor_name, full_channel_set, logger_monitor_github, REDIS,
-            repo_config.repo_name, releases_page,
-            InternalConf.redis_github_releases_key_prefix)
+            repo_config.repo_name, releases_page)
     except Exception as e:
         msg = '!!! Error when initialising {}: {} !!!'.format(monitor_name, e)
         log_and_print(msg)
@@ -264,7 +263,6 @@ def run_monitor_github(repo_config: RepoConfig):
     while True:
         # Start
         log_and_print('{} started.'.format(monitor_name))
-        sys.stdout.flush()
         try:
             start_github_monitor(github_monitor,
                                  InternalConf.github_monitor_period_seconds,
@@ -282,28 +280,27 @@ def run_periodic_alive_reminder():
     name = "Periodic alive reminder"
 
     # Initialization
-    periodic_alive_reminder = PeriodicAliveReminder(
-        UserConf.par_interval_seconds, periodic_alive_reminder_channel_set,
-        InternalConf.redis_periodic_alive_reminder_mute_key, REDIS)
+    par = PeriodicAliveReminder(
+        UserConf.par_interval_seconds, par_channel_set, REDIS)
 
     while True:
         # Start
         log_and_print('{} started.'.format(name))
-        sys.stdout.flush()
         try:
-            periodic_alive_reminder.start()
+            par.start()
         except Exception as e:
-            periodic_alive_reminder_channel_set.alert_error(
+            par_channel_set.alert_error(
                 TerminatedDueToExceptionAlert(name, e))
         log_and_print('{} stopped.'.format(name))
 
 
 if __name__ == '__main__':
-    if not INTERNAL_CONFIG_FILE_FOUND:
-        sys.exit('Config file {} is missing.'.format(INTERNAL_CONFIG_FILE))
+    if len(MISSING_INTERNAL_CONFIG_FILES) > 0:
+        sys.exit('Internal config file {} is missing.'
+                 ''.format(MISSING_INTERNAL_CONFIG_FILES[0]))
     elif len(MISSING_USER_CONFIG_FILES) > 0:
-        sys.exit('Config file {} is missing. Make sure that you run the setup '
-                 'script (run_setup.py) before running the alerter.'
+        sys.exit('User config file {} is missing. Make sure that you run the '
+                 'setup script (run_setup.py) before running the alerter.'
                  ''.format(MISSING_USER_CONFIG_FILES[0]))
 
     # Global loggers and polkadot data wrapper initialisation
@@ -347,13 +344,18 @@ if __name__ == '__main__':
         alerter_name, logger_general, REDIS, log_file_alerts, MONGO)
     log_and_print('Enabled alerting channels (general): {}'.format(
         full_channel_set.enabled_channels_list()))
-    periodic_alive_reminder_channel_set = \
+    par_channel_set = \
         get_periodic_alive_reminder_channel_set(alerter_name, logger_general,
                                                 REDIS, log_file_alerts, MONGO)
     log_and_print('Enabled alerting channels (periodic alive reminder): {}'
-                  ''.format(periodic_alive_reminder_channel_set.
+                  ''.format(par_channel_set.
                             enabled_channels_list()))
-    sys.stdout.flush()
+
+    # Print number of enabled and disabled alerts
+    enabled = len([b for b in InternalConf.alerts_enabled_map.values() if b])
+    disabled = len(InternalConf.alerts_enabled_map.values()) - enabled
+    log_and_print('Alert types enabled = {}'.format(enabled))
+    log_and_print('Alert types disabled = {}'.format(disabled))
 
     # Nodes initialisation
     try:

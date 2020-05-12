@@ -1,0 +1,33 @@
+version: '3.7'
+
+services:
+  ui:
+    build:
+      context: './'
+      dockerfile: './src/web/ui/Dockerfile'
+    image: 'simplyvc/panic_polkadot_ui:1.0.0'
+    volumes:
+      - './config:/opt/panic_polkadot/config'
+    ports:
+      - '${UI_HOST_PORT}:9000'
+    restart: always
+
+  redis:
+    image: 'redis'
+    ports:
+      - "${REDIS_HOST_PORT}:6379"
+    restart: always
+
+  mongo:
+    image: 'mongo'
+    ports:
+      - "${MONGO_HOST_PORT}:27017"
+    restart: always
+
+  alerter:
+    build: .
+    image: 'simplyvc/panic_polkadot:2.0.0'
+    volumes:
+      - './config:/opt/panic_polkadot/config'
+      - './logs:/opt/panic_polkadot/logs'
+    restart: always

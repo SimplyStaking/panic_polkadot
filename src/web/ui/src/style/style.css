@@ -1,0 +1,306 @@
+@import "~bootstrap/dist/css/bootstrap.min.css";
+@import "~font-awesome/css/font-awesome.css";
+
+.footer-style {
+    background-color: #777D7D;
+    font-size: 18px;
+    color: lightgray;
+    margin-top: auto;
+}
+
+.footer-style:hover {
+    color: #dbdbdb;
+    text-decoration: none
+}
+
+.page-container {
+    display: -ms-flexbox;
+    display: flex;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    height: 100vh;
+    font-family: "Source Sans Pro", sans-serif;
+}
+
+.content-wrap {
+    padding-bottom: 1rem
+}
+
+.link-style {
+    font-size: 15px;
+    color: rgb(248, 249, 250)
+}
+
+.navbar-header {
+    background-color: #217298;
+    align-items: center;
+    font-size: 20px;
+}
+
+.navbar-brand {
+    font-size: 20pt;
+}
+
+.navbar-dark .navbar-brand:hover {
+    color: rgba(255,255,255,.75);
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: white;
+}
+
+.navbar-item:active {
+    background-color: rgb(215, 216, 217);
+    color: black;
+    outline: none;
+}
+
+a {
+    font-size: 19px;
+    outline: none;
+}
+
+.cards-style {
+    margin-top: 30px;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.tabs-style {
+    margin-top: 30px;
+    background-color: rgb(248, 249, 250);
+}
+
+.tabs-style > a {
+    color: rgba(0, 0, 0, .5);
+}
+
+.tabs-style > a:hover {
+    color: rgb(33, 37, 41);
+}
+
+.tabs-style > a:focus {
+    outline: none;
+}
+
+.heading-style-1 {
+    font-size: 30px;
+    margin-top: 30px;
+}
+
+.heading-style-2 {
+    font-size: 25px;
+    margin-top: 30px;
+}
+
+.badges-style {
+    margin-left: 5px;
+}
+
+.tables-style {
+    margin-top: 30px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.tables-style-2 {
+    table-layout: fixed;
+}
+
+.tables-style-3 {
+    margin-top: 30px;
+    table-layout: fixed;
+}
+
+.div-spinner-style {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.spinner-style{
+    color: rgb(119, 125, 125);
+}
+
+.collapsible-style {
+    font-size: 25px;
+    color: rgba(0, 0, 0, .5);
+}
+
+.Collapsible {
+    background-color: rgb(248, 249, 250);
+}
+
+.Collapsible__contentInner {
+    padding: 10px;
+    border: 1px solid lightGrey;
+    border-top: 0;
+    margin-bottom: 10px;
+    line-height: 20px;
+    background-color: white;
+}
+
+.Collapsible__trigger {
+    display: block;
+    position: relative;
+    padding-left: 10px;
+}
+
+.Collapsible__trigger:after {
+    font-family: 'FontAwesome', sans-serif;
+    content: '\f107';
+    position: absolute;
+    right: 10px;
+    top: 3px;
+    display: block;
+    transition: transform 300ms;
+}
+
+.Collapsible__trigger.is-open:after {
+    transform: rotateZ(180deg);
+}
+
+.div-style {
+    margin-top: 30px;
+}
+
+.trigger-div-style {
+    margin-right: 30px;
+}
+
+.checkbox-style {
+    margin-top: 8px;
+}
+
+.info-div-style {
+    margin-top: -3px;
+    margin-bottom: 10px;
+}
+
+.buttons-placement-style {
+    display: flex;
+    max-width: 130px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 5px;
+}
+
+.button-style2, .button-style {
+    background-color: #217298;
+    border-color: #2787B3;
+}
+
+@media (max-width: 575px) {
+    .button-style2 {
+        margin-top: 10px;
+    }
+}
+
+.button-style2:enabled:focus, .button-style:focus {
+    box-shadow: none !important;
+}
+
+.button-style2:enabled:hover, .button-style:hover  {
+    background-color: #30a3d9;
+    border-color: #2787B3;
+}
+
+.button-style2:enabled:active, .button-style:active {
+    background-color: #57b0d9 !important;
+    border-color: #2787B3 !important;
+}
+
+.button-style2:disabled {
+    background-color: #5CBAE6 !important;
+    border-color: #2786B3 !important;
+}
+
+.info-tooltip-div-style {
+    margin-top: 10px;
+}
+
+.info-tooltip-div-style2 {
+    margin-top: 8px;
+}
+
+.tooltip-inner {
+    text-align: left;
+}
+
+.div-content-centre-style {
+    margin-top: auto;
+    margin-bottom: auto;
+    text-align: center;
+}
+
+.div-content-centre-style-margin-top {
+    margin-top: 10px;
+    margin-bottom: auto;
+    text-align: center;
+}
+
+.div-content-centre-style2 {
+    margin-top: 10px;
+    margin-bottom: auto;
+    text-align: center;
+}
+
+.fa-remove:hover {
+    color: #de0000;
+}
+
+.delete-button-style {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
+.delete-button-style:hover, .delete-button-style:focus {
+    outline: none;
+    text-decoration: none;
+}
+
+.enabled-style {
+    margin-left: 10px;
+}
+
+.error{
+    min-height: 75%;
+    min-height: 75vh;
+}
+
+.switch-style .custom-control-input:checked ~ .custom-control-label::before {
+    background-color: #60BAE5;
+    border-color: #60BAE5;
+}
+
+.switch-style .custom-control-input:active ~ .custom-control-label::before {
+    background-color: #60BAE5;
+    border-color: #60BAE5;
+}
+
+.switch-style .custom-control-input:focus ~ .custom-control-label::before {
+    box-shadow: none;
+    border-color: rgb(173, 181, 189);
+}
+
+.switch-style .custom-control-input:checked:focus~.custom-control-label::before{
+    border-color: #60BAE5;
+}
+
+.date-style {
+    text-align: center;
+    background-color: rgb(248, 249, 250);
+}
+
+.time-style {
+    text-align: center;
+}
+
+.column-style {
+    text-align: center;
+}

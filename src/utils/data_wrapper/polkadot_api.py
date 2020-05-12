@@ -120,17 +120,18 @@ class PolkadotApiWrapper:
         params = {'websocket': ws_url}
         return get_polkadot_json(endpoint, params, self._logger, api_call)
 
-    def get_current_elected(self, ws_url: str) -> PolkadotWrapperType:
-        api_call = 'staking/currentElected'
-        endpoint = self._api_endpoint + '/api/query/' + api_call
+    def get_derive_staking_validators(self, ws_url: str) \
+            -> PolkadotWrapperType:
+        api_call = 'staking/validators'
+        endpoint = self._api_endpoint + '/api/derive/' + api_call
         params = {'websocket': ws_url}
         return get_polkadot_json(endpoint, params, self._logger, api_call)
 
-    def get_stakers(self, ws_url: str, stash_account_address: str) \
+    def get_eras_stakers(self, ws_url: str, stash_account_address: str) \
             -> PolkadotWrapperType:
-        api_call = 'staking/stakers'
+        api_call = 'staking/erasStakers'
         endpoint = self._api_endpoint + '/api/query/' + api_call
-        params = {'websocket': ws_url, 'account_address': stash_account_address}
+        params = {'websocket': ws_url, 'account_id': stash_account_address}
         return get_polkadot_json(endpoint, params, self._logger, api_call)
 
     def get_events(self, ws_url: str, block_hash: Optional[str]) \

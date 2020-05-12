@@ -16,6 +16,16 @@ def get_node(nodes_so_far: List[NodeConfig],
         node_name = input('Unique node name:\n')
         if node_name in node_names_so_far:
             print('Node name must be unique.')
+        elif len(node_name) == 0:
+            print('Node name cannot be empty.')
+        else:
+            break
+
+    # Get chain name
+    while True:
+        chain_name = input('Chain that node runs on:\n')
+        if len(chain_name) == 0:
+            print('Chain name cannot be empty.')
         else:
             break
 
@@ -65,7 +75,7 @@ def get_node(nodes_so_far: List[NodeConfig],
         stash_account_address = ''
 
     # Return node
-    return NodeConfig(node_name, ws_url, node_is_validator,
+    return NodeConfig(node_name, chain_name, ws_url, node_is_validator,
                       node_is_archive_node, True, True, stash_account_address)
 
 
@@ -75,9 +85,8 @@ def setup_nodes(cp: ConfigParser, api_endpoint: str) -> None:
           'of nodes to be included in the monitoring will now be set up. This '
           'includes validators, sentries, and whether these nodes can be used '
           'as data sources to monitor a node\'s state indirectly. You may '
-          'include nodes from multiple substrate chains in any order; PANIC '
-          'will figure out which chain they belong to when you run it. Node '
-          'names must be unique!\n\n'
+          'include nodes from multiple substrate chains in any order. PANIC '
+          'will group them up automatically. Node names must be unique!\n\n'
           'Note that you will be asked whether a node is an archive node or '
           'not. This is done because for archive monitoring (which includes '
           '(alerting for)/detecting slashing events), the alerter needs '

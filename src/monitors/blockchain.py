@@ -6,11 +6,12 @@ from src.alerters.reactive.blockchain import Blockchain
 from src.alerters.reactive.node import Node
 from src.channels.channel import ChannelSet
 from src.monitors.monitor import Monitor
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.data_wrapper.polkadot_api import PolkadotApiWrapper
 from src.utils.exceptions import NoLiveNodeConnectedWithAnApiServerException
-from src.utils.redis_api import RedisApi
 
 
 class BlockchainMonitor(Monitor):
@@ -30,9 +31,6 @@ class BlockchainMonitor(Monitor):
 
         self._redis_alive_key_timeout = \
             self._internal_conf.redis_blockchain_monitor_alive_key_timeout
-        self._redis_alive_key = \
-            self._internal_conf.redis_blockchain_monitor_alive_key_prefix + \
-            self._monitor_name
 
     @property
     def data_wrapper(self) -> PolkadotApiWrapper:
@@ -49,9 +47,9 @@ class BlockchainMonitor(Monitor):
             self.logger.debug('Saving %s state', self._monitor_name)
 
             # Set alive key (to be able to query latest update from Telegram)
-            key = self._redis_alive_key
+            key = Keys.get_blockchain_monitor_alive(self.monitor_name)
             until = timedelta(seconds=self._redis_alive_key_timeout)
-            self.redis.set_for(key, str(datetime.now()), until)
+            self.redis.set_for(key, str(datetime.now().timestamp()), until)
 
     @property
     def data_source(self) -> Node:

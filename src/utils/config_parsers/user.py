@@ -11,7 +11,7 @@ def to_bool(bool_str: str) -> bool:
 
 class NodeConfig:
 
-    def __init__(self, node_name: str, node_ws_url: str,
+    def __init__(self, node_name: str, chain_name: str, node_ws_url: str,
                  node_is_validator: bool, is_archive_node: bool,
                  monitor_node: bool,
                  use_as_data_source: bool,
@@ -19,6 +19,7 @@ class NodeConfig:
         self._check_if_stash_account_address_is_valid(node_is_validator,
                                                       stash_account_address)
         self.node_name = node_name
+        self.chain_name = chain_name
         self.node_ws_url = node_ws_url
         self.node_is_validator = node_is_validator
         self.is_archive_node = is_archive_node
@@ -61,15 +62,16 @@ class RepoConfig:
 
 class UserConfig(ConfigParser):
     # Use user_parsed.py rather than creating a new instance of this class
-    def __init__(self, alerting_config_file_path: str,
+    def __init__(self, main_config_file_path: str,
                  nodes_config_file_path: str,
                  repos_config_file_path: str) -> None:
-        super().__init__([alerting_config_file_path,
+        super().__init__([main_config_file_path,
                           nodes_config_file_path,
                           repos_config_file_path])
 
         cp = configparser.ConfigParser()
-        cp.read(alerting_config_file_path)
+        cp.optionxform = str  # to preserve case of keys
+        cp.read(main_config_file_path)
         cp.read(nodes_config_file_path)
         cp.read(repos_config_file_path)
 
@@ -148,7 +150,8 @@ class UserConfig(ConfigParser):
         for section in sections:
             self.all_nodes.append(
                 NodeConfig(
-                    section['node_name'], section['node_ws_url'],
+                    section['node_name'], section['chain_name'],
+                    section['node_ws_url'],
                     section['node_is_validator'].lower() == 'true',
                     section['is_archive_node'].lower() == 'true',
                     section['monitor_node'].lower() == 'true',

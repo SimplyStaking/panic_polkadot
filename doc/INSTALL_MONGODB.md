@@ -1,8 +1,8 @@
-# DRAFT: Installing MongoDB
-
-**TODO**: add more info to this page if necessary
+# Installing MongoDB
 
 ## Installation
+
+If you are going to **run PANIC using docker**, it is very important to install MongoDB using docker. If this is the case, please do not proceed with installing Mongo for now, as this will be done at a later stage during the installation process.  
 
 ### Installing Directly to System
 
@@ -15,20 +15,6 @@ On Windows:
 #### Enabling Authentication
 
 - https://docs.mongodb.com/manual/tutorial/enable-authentication/
-
-### Installing using Docker
-
-To install and run MongoDB on your system:
-
-```bash
-docker run -p 27017:27017 -d mongo
-```
-
-To make sure that Mongo is running:
-
-```bash
-docker ps
-```
 
 ---
 [Back to alerter installation page](INSTALL_AND_RUN.md)

@@ -63,67 +63,47 @@ class MongoApi:
         # then stop the function called from happening by returning True
         return not self._is_live and not self._live_check_limiter.can_do_task()
 
-    def insert_one(self, collection: str, document: Dict) \
-            -> Optional[InsertOneResult]:
+    def _safe(self, function, args: List, default_return):
+        # Calls the function with the provided arguments and performs exception
+        # handling as well as returns a specified default if mongo is running
+        # into difficulties. Exceptions are raised to the calling function.
         try:
             if self._do_not_use_if_recently_went_down():
-                return None
-            ret = self._db[collection].insert_one(document)
+                return default_return
+            ret = function(*args)
             self._set_as_live()
             return ret
         except Exception as e:
-            self._logger.error('Mongo error in insert_one: %s', e)
+            self._logger.error('Mongo error in %s: %s', function.__name__, e)
             self._set_as_down()
             raise e
+
+    def insert_one(self, collection: str, document: Dict) \
+            -> Optional[InsertOneResult]:
+        return self._safe(
+            lambda col, doc: self._db[col].insert_one(doc),
+            [collection, document], None)
 
     def insert_many(self, collection: str, documents: List[Dict]) \
             -> Optional[InsertManyResult]:
-        try:
-            if self._do_not_use_if_recently_went_down():
-                return None
-            ret = self._db[collection].insert_many(documents)
-            self._set_as_live()
-            return ret
-        except Exception as e:
-            self._logger.error('Mongo error in insert_many: %s', e)
-            self._set_as_down()
-            raise e
+        return self._safe(
+            lambda col, doc: self._db[col].insert_many(doc),
+            [collection, documents], None)
 
     def get_all(self, collection: str) -> Optional[List[Dict]]:
-        try:
-            if self._do_not_use_if_recently_went_down():
-                return None
-            ret = list(self._db[collection].find({}))
-            self._set_as_live()
-            return ret
-        except Exception as e:
-            self._logger.error('Mongo error in drop_collection: %s', e)
-            self._set_as_down()
-            raise e
+        return self._safe(
+            lambda col: list(self._db[col].find({})),
+            [collection], None)
 
     def drop_collection(self, collection: str) -> Optional[Dict]:
-        try:
-            if self._do_not_use_if_recently_went_down():
-                return None
-            ret = self._db.drop_collection(collection)
-            self._set_as_live()
-            return ret
-        except Exception as e:
-            self._logger.error('Mongo error in drop_collection: %s', e)
-            self._set_as_down()
-            raise e
+        return self._safe(
+            lambda col: self._db.drop_collection(col),
+            [collection], None)
 
     def drop_db(self) -> None:
-        try:
-            if self._do_not_use_if_recently_went_down():
-                return None
-            ret = self._client.drop_database(self._db.name)
-            self._set_as_live()
-            return ret
-        except Exception as e:
-            self._logger.error('Mongo error in drop_db: %s', e)
-            self._set_as_down()
-            raise e
+        return self._safe(
+            lambda: self._client.drop_database(self._db.name),
+            [], None)
 
     def ping_unsafe(self):
         return self._db.command('ping')

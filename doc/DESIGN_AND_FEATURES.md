@@ -3,34 +3,41 @@
 This page will present the inner workings of the alerter as well as the features that one is able to interact with and how. The following points will be presented and discussed:
 
 - [**Design**](#design)
-- [**Alerting Channels**](#alerting-channels): (console, logging, Telegram, email, Twilio)
+- [**Alerting Channels**](#alerting-channels): (console, logging, Telegram, email, Twilio, database)
 - [**Alert Types**](#alert-types): (critical, warning, info, error)
 - [**Monitor Types**](#monitor-types): (node, blockchain, GitHub)
 - [**Periodic Alive Reminder**](#periodic-alive-reminder)
 - [**Telegram Commands**](#telegram-commands)
+- [**Web UI**](#web-ui)
 - [**Redis**](#redis)
+- [**MongoDB**](#mongodb)
 - [**Complete List of Alerts**](#complete-list-of-alerts)
 
 ## Design
 
 The diagram below gives an idea of the various components at play when PANIC is running, and how they interact with each other and the node operator:
 
-<img src="IMG_DESIGN_10x.png" alt="design" width="900"/>
+<img src="./images/IMG_DESIGN_10x.png" alt="PANIC design" width="900"/>
 
 - **Monitors** extract data from a source and pass it on to the alerters
 - **Alerters** store the data (**Redis**) and send alerts to a set of channels
 - **Channels** pass on the alerts to the appropriate external service
-- **Telegram Listener** handles and replies to user commands (using **Redis**)
+
+The user can interact with PANIC using two **User Interfaces**:
+
+- By sending commands to a Telegram chat, where the **Backend** handles and replies to these commands using data stored in **Redis**
+- By using a **Web UI** to check the status of the nodes, view alerts stored in the **DB** in real-time, and configure PANIC to his liking.
 
 ## Alerting Channels
 
-PANIC currently supports five alerting channels. By default, only console and logging alerts are enabled, allowing the node operator to run the alerter without having to set up extra alerting channels. This is not enough for a more serious and longer-term alerting setup, for which the node operator should set up the remaining alerting channels.
+PANIC supports multiple alerting channels. By default, only console and logging alerts are enabled, allowing the node operator to run the alerter without having to set up extra alerting channels. This is not enough for a more serious and longer-term alerting setup, for which the node operator should set up the remaining alerting channels.
 
 - **Console**: alerts printed to standard output (`stdout`).
 - **Logging**: alerts logged to an alerts log (`logs/alerts/alerts.log`).
 - **Telegram**: alerts delivered to a Telegram chat via a Telegram bot.
 - **Email**: alerts sent as emails using an SMTP server, with option for authentication.
 - **Twilio**: alerts trigger a phone call to grab the node operator's attention.
+- **MongoDB**: alerts are persistently stored in a MongoDB database.
 
 Instructions on how to set up the alerting channels can be found in the [installation guide](INSTALL_AND_RUN.md).
 
@@ -43,13 +50,17 @@ Different events vary in severity. We cannot treat an alert for a new version of
 - **INFO**: little to zero severity but consists of information which is still important to acknowledge. Info alerts also include positive events. **Example**: increase in bonded balance.
 - **ERROR**: triggered by abnormal events and ranges from zero to high severity based on the error that has occurred and how many times it is triggered.
 
+Note that for more advanced users, the alerts internal config file (`config/internal_config_alerts.ini`) lists these severities, allowing users to disable specific alert severities manually. It is unlikely that users will want to disable an entire alert type, but this feature is provided for completeness.
+
 ## Monitor Types
 
 An aspect of the design of PANIC that is less visible to the user is that there are multiple monitor types. Once PANIC is started it detects the number of nodes and which chain(s) they belong to, and automatically launches the necessary number of monitors of each type.
 
 - **Node monitor** (one per node): deals with node-specific details such as bonded balance and number of peers.
 - **Blockchain monitor** (one per chain): deals with chain-specific details such as changes in the size of the validator set and new referendums.
-- **GitHub monitor** (one per repository): uses the GitHub API to keep track of the number of releases in a repository and alerts on a new release.
+- **GitHub monitor** (one per repository): uses the GitHub API to keep track of the number of releases in a repository.
+
+Each monitor passes on the data that it extracts to the respective alerter. For example, the node monitor passes on its data to the node alerter. The alerter's task is then to keep track of changes in the data to figure out whether or not it should notify the user.
 
 This section will go through each monitor type in greater detail.
 
@@ -102,13 +113,11 @@ As already discussed, archive monitoring is part of indirect monitoring. If enab
         1. Sets *HeightToCheck* = *LastH* - `MCUB`
         2. Gets the block hash at height *HeightToCheck* using the API Server
         3. Gets slash amount of validator at height *HeightToCheck*
-        4. Alerts if greater than zero.
-        5. *LastHChecked* = *HeightToCheck*
+        4. *LastHChecked* = *HeightToCheck*
     4. Otherwise if *HeightToCheck* <= *LastH* :
         1. Gets the block hash at height *HeightToCheck* using the API Server
         2. Gets slash amount of validator at height *HeightToCheck*
-        3. Alerts if greater than zero.
-        4. *LastHChecked* = *HeightToCheck*
+        3. *LastHChecked* = *HeightToCheck*
         
 Note: 
 - If the alerter is not in sync with the archive node with respect to block height, the maximum number of historical blocks checked is `MCUB`, which is configurable from the internal config (`node_monitor_max_catch_up_blocks`).
@@ -138,14 +147,16 @@ In a typical monitoring round, the blockchain monitor does the following:
     2. Gets council proposals count
     3. Gets public proposals count
     4. Gets size of the validator set
-2. Store new chain data and alert if necessary
+2. Stores new chain data
     1. While *stored_referendum_count* < *new_referendum_count*
-        1. If referendum number *stored_referendum_count* still exists, sets *stored_referendum_count* to *stored_referendum_count* + 1.
-    2. Sets *stored_council_prop_count* to *new_council_prop_count*
-    3. Sets *stored_public_prop_count* to *new_public_prop_count*
+        1. Sets *stored_referendum_count* to *stored_referendum_count* + 1.
+    2. While *stored_council_prop_count* < *new_council_prop_count*
+        1. Sets *stored_council_prop_count* to *new_council_prop_count* + 1.
+    3. While *stored_public_prop_count* < *new_public_prop_count*
+        1. Sets *stored_public_prop_count* to *new_public_prop_count* + 1.
     4. Sets *stored_validator_set_size* to *new_validator_set_size*
 3. Sets the API Server as accessible
-4. Saves its state
+4. Saves its state to Redis
 5. Sleeps until the next monitoring round
 
 ### GitHub Monitor
@@ -156,7 +167,7 @@ In each monitoring round, the GitHub monitor:
 
 1. Gets the list of the repository's releases from the API, for example: <https://api.github.com/repos/polkadot-js/api/releases>
     1. Gets and stores the number of releases
-2. Saves its state
+2. Saves its state to Redis
 3. Sleeps until the next monitoring round
 
 ## Periodic Alive Reminder
@@ -168,25 +179,37 @@ The following are some important points about the periodic alive reminder:
 1. The time after which a reminder is sent can be specified by the operator using the setup process described [here](SETUP.md).
 2. The periodic alive reminder can be muted and unmuted using Telegram as discussed below.
 
-## Telegram Commands
+## User Interfaces
 
-Telegram bots in PANIC serve two purposes. As mentioned above, they are used to send alerts. However they can also accept commands that allow you to check the status of the alerter (and its running monitors), snooze or unsnooze calls, mute or unmute periodic alive reminders, and conveniently get Kusama CC3 explorer links to validator lists, blocks, and transactions.
+As mentioned earlier, the operator has two main ways to interact with PANIC.
 
-<img src="IMG_TELEGRAM_COMMANDS.png" alt="telegram_commands"/>
+### Telegram Commands
+
+Telegram bots in PANIC serve two purposes. As mentioned above, they are used to send alerts. However they can also accept commands that allow you to check the status of the alerter (and its running monitors), snooze or unsnooze calls, mute or unmute periodic alive reminders, and conveniently get Kusama explorer links to validator lists, blocks, and transactions.
+
+<img src="./images/IMG_TELEGRAM_COMMANDS.png" alt="telegram_commands"/>
 
 For example, if Redis is running along with three node monitors and one blockchain monitor, with calls not snoozed, and periodic alive reminder not muted, the `/status` command returns the following:
 
-<img src="IMG_TELEGRAM_STATUS_COMMAND.png" alt="telegram_status_command"/>
+<img src="./images/IMG_TELEGRAM_STATUS_COMMAND.png" alt="telegram_status_command"/>
+
+### Web UI
+
+The web UI facilitates the user experience in two ways:
+- To help the user monitor his nodes easily at a glance, and watch alerts in real-time.
+- To give the user an easy way of setting up PANIC to his liking, and have greater control over the alerter.
+
+For a detailed read on the design and features of the Web UI, please continue reading [here](./UI_DESIGN_AND_FEATURES.md).
 
 ## Redis
 
 [Redis](https://redis.io/) is an in-memory key-value store. In the context of the alerter, Redis is used as an in-memory (and thus volatile) copy of a subset of the alerter's state so that:
-- The state can be queried, for example to provide a status in Telegram, when the `/status` command is issued.
+- The state can be queried, for example to provide a status in Telegram when the `/status` command is issued, or to provide real-time data for the Web UI dashboard.
 - When the alerter software restarts or gets restarted, such as to change the configuration, it can continue where it left off.
 
 Included in the alerter state stored in Redis are:
 - **For each node:** 
-    - Start of downtime, if any
+    - Timestamp at downtime start, if any
     - Number of peers
     - Bonded balance
     - The `auth_index` value
@@ -196,33 +219,66 @@ Included in the alerter state stored in Redis are:
     - Is-disabled status
     - Is-syncing status
     - Number of blocks authored
-    - Time of last block authored
+    - Timestamp of the last block authored
     - The `is_authoring` value
-    - Time of last block check activity
+    - Timestamp of the last block check activity
     - The finalized block height
-    - Time of last finalized height change
-    - Time of last finalized height check activity
-    - The `no_change_in_height_warning_alert_sent` value
+    - Timestamp of the last finalized height change
+    - Timestamp of the last finalized height check activity
+    - The `no_change_in_height_warning_sent` value
 - **For each node monitor:**
-    - Last update time (to know that the monitor is still running)
+    - Timestamp of the last update (to know that the monitor is still running)
     - The current session index
     - The last height checked in archive monitoring
-- **For each blockchain monitor:**
-    - Last update time (to know that the monitor is still running)
+- **For each blockchain:**
     - Public propositions count
     - Council propositions count
     - Referendum count
     - Validator set size
+- **For each blockchain monitor:**
+    - Timestamp of the last update (to know that the monitor is still running)
+- **For each GitHub repository:**
+    - Number of releases
+- **Unique keys:**
+    - Key indicating that [Twilio](#twilio) is snoozed
+    - Key indicating that the [PAR](#periodic-alive-reminder) is muted
+
+Keys are grouped mostly by means of key prefixes (one per type of key), but also using [Redis hashes](https://redislabs.com/ebook/part-1-getting-started/chapter-1-getting-to-know-redis/1-2-what-redis-data-structures-look-like/1-2-4-hashes-in-redis/), and a purpose-designed namespace at a global level based on the unique alerter identifier. For example, for an instance of PANIC called "MyPanic", from simplest to most complex:
+- The unique Twilio snooze key is simply `MyPanic:tw1` (no hash)
+- The session index of a node monitor for "Node 1" would be `MyPanic:nm2_Node 1` (no hash)
+- The number of peers of "Node 1" running on "Chain 1" would be `n4_Node 1` (at hash `MyPanic:hash_bc1_Chain 1`)
+
+The namespace prefix (e.g. `MyPanic:`) serves to completely seperate the keys of two or more instances of PANIC that are using the same instance of Redis. As a result, these two instances can monitor happily in their own bubble of keys.
+
+Some keys are given an expiry time. Most notably, the Twilio snooze and alive reminder mute keys are set to expire after the selected time from the point of snoozing/muting. Note that it is not possible to expire a single key within a hash. This is why monitor-related keys (such as `nm2`), some of which are set to expire, were not set up to use a hash (e.g. `hash_bc1`).
 
 Instructions on how to set up and secure an instance of Redis can be found in the [installation guide](INSTALL_AND_RUN.md).
 
 Notes:
 
 - For a cleaner and correct execution of the alerter, the operator is encouraged to reset redis (clear all data) using the file `run_util_reset_redis.py` when the chain is either upgraded to a new chain, or in extreme cases when a rollback happens. 
+- It is highly discouraged to manually manipulate the values that PANIC stores in Redis as this might cause unexpected behaviour and cause the alerter to send out false alerts.
+
+## MongoDB
+
+[MongoDB](https://www.mongodb.com/what-is-mongodb) is a general-purpose document-based database built for modern application developers. In the context of the alerter, MongoDB is used to persistently store alerts raised by the alerter, so that they can be viewed in real-time in the Web UI.
+
+Each alert stored in a MongoDB database has the following fields:
+
+- **Origin**: the name of the channel from where the alert is raised.
+- **Severity**: the severity of the alert.
+- **Message**: the alert message.
+- **Timestamp**: timestamp in UTC of when the alert was raised.
+
+Notes:
+
+- The Web UI assumes that the alerts are sorted recent-first, so the user is not encouraged to modify/add alerts in the MongoDB database himself.
 
 ## Complete List of Alerts
 
 A complete list of alerts will now be presented. These are grouped into sections so that they can be understood more easily. For each alert, the severity and whether it is configurable from the config files is also included.
+
+Note that for more advanced users, the alerts internal config file (`config/internal_config_alerts.ini`) also lists all possible alerts and allows users to disable specific alerts as discussed [here](./SETUP.md#advanced-configuration).
 
 ### Access to Nodes
 
@@ -350,7 +406,7 @@ Blockchain alerts inform the user of events related to the blockchain, not the n
 
 #### Democracy
 
-In PANIC, whenever a new referendum is created and is still available, the user is informed via an info alert that a new referendum has been created along with its ID and end block. Moving on to public proposals, when a new public proposal is created, an info alert is raised along with its ID.
+In PANIC, whenever a new referendum is created and is still ongoing, the user is informed via an info alert that a new referendum has been created along with its ID and end block. Moving on to public proposals, when a new public proposal is created, an info alert is raised along with its ID.
 
 Note:
 

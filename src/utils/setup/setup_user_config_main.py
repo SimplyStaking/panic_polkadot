@@ -325,8 +325,9 @@ def setup_redis(cp: ConfigParser) -> None:
 
         print('You will now be asked to input the port of the Redis server.\n'
               'If you will be running PANIC using Docker, you should leave the '
-              'port as the default. Otherwise, you must run the Redis Docker '
-              'using -p <port>:6379.')
+              'port as the default. If you wish to run the Redis container on '
+              'another port, please input this port number here and change the '
+              '`REDIS_HOST_PORT` value inside the `panic_polkadot/.env` file.')
         port = input('Please insert the Redis host port: (default: 6379)\n')
         port = '6379' if port == '' else port
 
@@ -376,8 +377,9 @@ def setup_mongo(cp: ConfigParser) -> None:
 
         print('You will now be asked to input the port of the Mongo server.\n'
               'If you will be running PANIC using Docker, you should leave the '
-              'port as the default. Otherwise, you must run the Mongo Docker '
-              'using -p <port>:27017.')
+              'port as the default. If you wish to run the Mongo container on '
+              'another port, please input this port number here and change the '
+              '`MONGO_HOST_PORT` value inside the `panic_polkadot/.env` file.')
         port = input('Please insert the Mongo host port: (default: 27017)\n')
         port = '27017' if port == '' else port
 

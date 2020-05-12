@@ -3,13 +3,13 @@ from src.utils.exceptions import ConfigNotFoundException
 if __name__ == '__main__':
     try:
         from src.utils.config_parsers.internal_parsed import \
-            InternalConf, \
-            INTERNAL_CONFIG_FILE_FOUND, INTERNAL_CONFIG_FILE
+            InternalConf, MISSING_INTERNAL_CONFIG_FILES
 
-        if INTERNAL_CONFIG_FILE_FOUND:
+        if len(MISSING_INTERNAL_CONFIG_FILES) == 0:
             print('Internal configuration is valid.')
         else:
-            print('Config file {} is missing.'.format(INTERNAL_CONFIG_FILE))
+            print('Config file {} is missing.'.format(
+                MISSING_INTERNAL_CONFIG_FILES[0]))
     except ConfigNotFoundException as cnfe:
         print(cnfe)
     except KeyError as ke:

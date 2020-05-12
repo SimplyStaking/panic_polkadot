@@ -6,7 +6,8 @@ from redis import ConnectionError as RedisConnectionError
 
 from src.alerters.proactive.periodic import PeriodicAliveReminder
 from src.channels.channel import ChannelSet
-from src.utils.redis_api import RedisApi
+from src.store.redis.redis_api import RedisApi
+from src.store.store_keys import Keys
 from test import TestInternalConf, TestUserConf
 from test.test_helpers import CounterChannel
 
@@ -16,12 +17,10 @@ class TestPeriodicWithoutRedis(unittest.TestCase):
         self.alerter_name = 'testalerter'
         self.logger = logging.getLogger('dummy')
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
-
-        self.mute_key = TestInternalConf.redis_periodic_alive_reminder_mute_key
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.par = PeriodicAliveReminder(
-            timedelta(), self.channel_set, self.mute_key, None)
+            timedelta(), self.channel_set, None)
 
     def test_periodic_alive_reminder_sends_info_alert_if_redis_disabled(self):
         self.counter_channel.reset()  # ignore previous alerts
@@ -37,7 +36,7 @@ class TestPeriodicWithRedis(unittest.TestCase):
         self.alerter_name = 'testalerter'
         self.logger = logging.getLogger('dummy')
         self.counter_channel = CounterChannel(self.logger)
-        self.channel_set = ChannelSet([self.counter_channel])
+        self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
 
         self.db = TestInternalConf.redis_test_database
         self.host = TestUserConf.redis_host
@@ -52,10 +51,8 @@ class TestPeriodicWithRedis(unittest.TestCase):
         except RedisConnectionError:
             self.fail('Redis is not online.')
 
-        self.mute_key = TestInternalConf.redis_periodic_alive_reminder_mute_key
-
         self.par = PeriodicAliveReminder(
-            timedelta(), self.channel_set, self.mute_key, self.redis)
+            timedelta(), self.channel_set, self.redis)
 
     def test_periodic_alive_reminder_sends_info_alert_if_no_mute_key(self):
         self.counter_channel.reset()  # ignore previous alerts
@@ -68,10 +65,11 @@ class TestPeriodicWithRedis(unittest.TestCase):
     def test_periodic_alive_reminder_sends_no_alert_if_mute_key_present(self):
         hours = timedelta(hours=float(1))
         until = str(datetime.now() + hours)
-        self.redis.set_for(self.mute_key, until, hours)
+        key = Keys.get_alive_reminder_mute()
+        self.redis.set_for(key, until, hours)
         self.counter_channel.reset()  # ignore previous alerts
         self.par.send_alive_alert()
-        self.redis.remove(self.mute_key)
+        self.redis.remove(key)
         self.assertEqual(self.counter_channel.warning_count, 0)
         self.assertEqual(self.counter_channel.critical_count, 0)
         self.assertEqual(self.counter_channel.info_count, 0)
