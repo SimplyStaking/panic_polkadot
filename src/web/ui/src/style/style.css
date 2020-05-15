@@ -198,6 +198,8 @@ a {
 
 .button-style2:enabled:focus, .button-style:focus {
     box-shadow: none !important;
+    background-color: #217298 !important;
+    border-color: #2787B3 !important;
 }
 
 .button-style2:enabled:hover, .button-style:hover  {
