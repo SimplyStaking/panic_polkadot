@@ -4,6 +4,17 @@
 
 <!--New features/improvements/fixes go here-->
 
+## 2.0.1
+
+Released on 15th May 2020
+
+This new version of PANIC fixes some UI related minor bugs.
+
+### Bug Fixes
+
+* (UI buttons) After they are clicked, the buttons will now have the same colour as the navigation bar rather than their colour getting stuck.
+* (UI Main page) The `To` and `Phone numbers to dial` fields in the `Email alerts` and `Twilio alerts` forms respectively were incorrectly set up to use comma separators instead of colon separators, which clashes with PANIC. Now, these fields can take multiple inputs separated with a colon.
+
 ## 2.0.0
 
 Released on 12th May 2020

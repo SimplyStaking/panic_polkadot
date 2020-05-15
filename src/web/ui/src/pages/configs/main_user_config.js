@@ -460,12 +460,20 @@ function EmailAlertsForm({
             && toBool(mainUserConfigJson.email_alerts.enabled)}
           />
           <Form.Control.Feedback>Looks good!</Form.Control.Feedback>
-          <Form.Control.Feedback type="invalid">
-            To e-mail addresses cannot be empty!
-          </Form.Control.Feedback>
+          {fieldEmpty(mainUserConfigJson.email_alerts.to)
+            ? (
+              <Form.Control.Feedback type="invalid">
+                To e-mail addresses cannot be empty!
+              </Form.Control.Feedback>
+            )
+            : (
+              <Form.Control.Feedback type="invalid">
+                To e-mail addresses are not in the required format.
+              </Form.Control.Feedback>
+            )}
           <Form.Text className="text-muted">
-            Separate addresses with commas if you wish to enter multiple
-            addresses.
+            Separate addresses with semi-colons and no spaces if you wish to
+            enter multiple addresses.
           </Form.Text>
         </div>,
         5,
@@ -593,13 +601,13 @@ function EmailAlertsForm({
                   try {
                     ToastsStore.info(
                       `Sending test e-mail to address ${
-                        mainUserConfigJson.email_alerts.to.split(',')[0]
+                        mainUserConfigJson.email_alerts.to.split(';')[0]
                       }`, 5000,
                     );
                     await sendTestEmail(
                       mainUserConfigJson.email_alerts.smtp,
                       mainUserConfigJson.email_alerts.from,
-                      mainUserConfigJson.email_alerts.to.split(',')[0],
+                      mainUserConfigJson.email_alerts.to.split(';')[0],
                       mainUserConfigJson.email_alerts.user,
                       mainUserConfigJson.email_alerts.pass,
                     );
@@ -785,7 +793,7 @@ function TwilioAlertsForm({
               </Form.Control.Feedback>
             )}
           <Form.Text className="text-muted">
-            Format: +12025551234. Separate phone numbers with commas and no
+            Format: +12025551234. Separate phone numbers with semi-colons and no
             spaces if you wish to enter multiple numbers.
           </Form.Text>
         </div>,
@@ -842,14 +850,14 @@ function TwilioAlertsForm({
                     ToastsStore.info(
                       `Calling number ${
                         mainUserConfigJson.twilio_alerts.phone_numbers_to_dial
-                          .split(',')[0]}`, 5000,
+                          .split(';')[0]}`, 5000,
                     );
                     await testCall(
                       mainUserConfigJson.twilio_alerts.account_sid,
                       mainUserConfigJson.twilio_alerts.auth_token,
                       mainUserConfigJson.twilio_alerts.twilio_phone_number,
                       mainUserConfigJson.twilio_alerts.phone_numbers_to_dial
-                        .split(',')[0],
+                        .split(';')[0],
                     );
                   } catch (e) {
                     if (e.response) {
@@ -859,7 +867,7 @@ function TwilioAlertsForm({
                       ToastsStore.error(
                         `Error in calling ${
                           mainUserConfigJson.twilio_alerts.phone_numbers_to_dial
-                            .split(',')[0]}. Error: ${
+                            .split(';')[0]}. Error: ${
                           e.response.data.error
                         }`, 5000,
                       );
@@ -869,7 +877,7 @@ function TwilioAlertsForm({
                       ToastsStore.error(
                         `Error in calling ${
                           mainUserConfigJson.twilio_alerts.phone_numbers_to_dial
-                            .split(',')[0]}. Error: ${e.message}`, 5000,
+                            .split(';')[0]}. Error: ${e.message}`, 5000,
                       );
                     }
                   }
@@ -2185,14 +2193,18 @@ class MainUserConfig extends Component {
     return !fieldEmpty(state.mainUserConfigJson.email_alerts.from);
   }
 
+  // The addresses are valid if the field is not empty, seperated by ';' and
+  // each address is non-empty.
   toAddressesValid() {
     const { state } = this;
     if (!toBool(state.mainUserConfigJson.email_alerts.enabled)) {
       return true;
     }
-    return seperatorValuesNonEmpty(
-      state.mainUserConfigJson.email_alerts.to, ',',
-    );
+    return !fieldEmpty(
+      state.mainUserConfigJson.email_alerts.to,
+    ) && new RegExp('^[^\\s]+([;][^\\s]+)*$').test(
+      state.mainUserConfigJson.email_alerts.to,
+    ) && seperatorValuesNonEmpty(state.mainUserConfigJson.email_alerts.to, ';');
   }
 
   accountSIDValid() {
@@ -2229,7 +2241,7 @@ class MainUserConfig extends Component {
     }
     return !fieldEmpty(
       state.mainUserConfigJson.twilio_alerts.phone_numbers_to_dial,
-    ) && new RegExp('^[+][0-9]+([,][+][0-9]+)*$').test(
+    ) && new RegExp('^[+][0-9]+([;][+][0-9]+)*$').test(
       state.mainUserConfigJson.twilio_alerts.phone_numbers_to_dial,
     );
   }

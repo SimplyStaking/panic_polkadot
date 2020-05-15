@@ -3,39 +3,74 @@
 To update an instance of PANIC to this version, run these commands inside the project directory:
 ```bash
 git fetch                # Fetch these changes
-git checkout v2.0.0      # Switch to this version
+git checkout v2.0.1      # Switch to this version
 
-# At this stage, you should stop PANIC
+# At this stage, you should stop the alerter and the UI
 
 pipenv sync              # Update dependencies
 ```
 
-Given the recent overhaul of how PANIC uses Redis, we highly recommend clearing up Redis by running the `run_util_reset_redis.py` script using this command:
+Follow one of the guides below depending whether you were running PANIC from source, or using docker-compose.
+
+## Running from Source
+
+First navigate into the the UI directory and install the packages defined in package.json:
 ```bash
-pipenv run python run_util_reset_redis.py         # Reset redis. Replace 'python' with 'python3' if the latter was installed
+cd src/web/ui
+npm install              # use sudo in linux if necessary
 ```
 
-## Alerter
-PANIC can now be started up!
+Re-build the UI, re-direct to the PANIC Polkadot directory, and start the UI
+```bash
+npm run-script build     # use sudo in linux if necessary
+cd ../../../
+bash run_ui_server.sh
+```
 
-If the alerter was **running as a Linux service**, the service should now be restarted:
+The next step is to make sure that the inputs in the `To` and `Phone numbers to dial` fields in the `E-mail Alerts` and `Twilio Alerts` forms respectively are formatted as required by the `Main` page.
+
+To make sure that the above step is correct, click on `Save Config`. The `Main` page should perform the validation itself.
+
+For PANIC to detect changes in the configs (if any), the next step is to restart the alerter. If the alerter was **running as a Linux service**, the service should now be restarted:
 ```bash
 sudo systemctl restart panic_alerter
 ```
 
-For all users **running PANIC using Docker**, we now have a new installation and running procedure using Docker-Compose.
-
-Therefore, start by stopping the Mongo, Redis and alerter containers using this command:
+Otherwise, perform this command in the project directory:
 ```bash
-docker kill <MONGO_CONTAINER_ID> <REDIS_CONTAINER_ID> <ALERTER_CONTAINER_ID>
+pipenv sync
+pipenv run python run_alerter.py          # use sudo in linux if necessary
+# If multiple versions of Python are installed, the python executable may be `python3.6`, `python3.7`, etc.
 ```
 
-Now, proceed as follows:
-* First [install Docker-Compose](INSTALL_DOCKER_AND_COMPOSE.md) if it is currently not installed on your system.
-* Follow the instructions in [this guide](INSTALL_AND_RUN.md#run-using-docker) to re-build and re-run the images.
+## Run using Docker-Compose
 
-## User Interface
+First, either re-build the docker image for the UI, or download it from Docker Hub.
+ 
+**Option 1: Building The Docker Image**
 
-To make use of the brand new PANIC Web UI:
-* **Running from source**: Follow the instructions [here](INSTALL_AND_RUN.md#running-from-source)
-* **Running using Docker and Docker-Compose**: Follow the instructions [here](INSTALL_AND_RUN.md#run-using-docker)
+Run the following command in the project directory to build the image:
+```bash
+docker-compose build ui
+```
+
+**Option 2: Downloading the Pre-Built Docker Image from Docker Hub**
+
+The pre-built Docker image can simply be downloaded by running the following command:
+```bash
+docker pull simplyvc/panic_polkadot_ui:1.0.1
+```
+
+Run the UI docker image using this command:
+```bash
+docker-compose up -d ui
+```
+
+The next step is to make sure that the inputs in the `To` and `Phone numbers to dial` fields in the `E-mail Alerts` and `Twilio Alerts` forms respectively are formatted as required by the `Main` page.
+
+To make sure that the above step is correct, click on `Save Config`. The `Main` page should perform the validation itself.
+
+For PANIC to detect changes in the configs (if any), the next step is to restart the alerter container using this command:
+```bash
+docker-compose restart alerter
+```
