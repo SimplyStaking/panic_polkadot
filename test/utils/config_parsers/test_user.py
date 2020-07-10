@@ -8,4 +8,5 @@ class TestUserConfig(unittest.TestCase):
     def test_user_config_values_loaded_successfully(self) -> None:
         UserConfig('test/test_user_config_main.ini',
                    'test/test_user_config_nodes.ini',
-                   'test/test_user_config_repos.ini')
+                   'test/test_user_config_repos.ini',
+                   'test/test_user_config_ui.ini')

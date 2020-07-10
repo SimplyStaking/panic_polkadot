@@ -1,47 +1,34 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { forbidExtraProps } from 'airbnb-prop-types';
-import Button from 'react-bootstrap/Button';
 import Container from 'react-bootstrap/Container';
-import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Table from 'react-bootstrap/Table';
-import Tooltip from 'react-bootstrap/Tooltip';
-import Spinner from 'react-bootstrap/Spinner';
-import '../../style/style.css';
 import moment from 'moment';
 import '@fortawesome/fontawesome-svg-core';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft } from '@fortawesome/free-solid-svg-icons/faChevronLeft';
-import { faChevronRight } from
-  '@fortawesome/free-solid-svg-icons/faChevronRight';
-import {
-  ToastsContainer,
-  ToastsContainerPosition,
-  ToastsStore,
-} from 'react-toasts';
+import { ToastsStore } from 'react-toasts';
 import Alert from '../../components/alert';
 import { getAlerts } from '../../utils/data';
+import { MONGO_NOT_SET_UP } from '../../utils/error';
+import Page from '../../components/page';
+import {
+  ALERT_TYPE,
+  SEVERITY_COLOUR_REPRESENTATION,
+} from '../../utils/constants';
+import { ChevronButton } from '../../components/buttons';
+import TooltipOverlay from '../../components/overlays';
+import '../../style/style.css';
 
-function createCircle(color, radius) {
+function SeverityCircle({
+  svgHeight, svgWidth, circleCentreX, circleCentreY, color, radius,
+}) {
   return (
-    <svg height={21} width={21}>
-      <circle cx={10} cy={10} r={radius} fill={color} />
+    <svg height={svgHeight} width={svgWidth}>
+      <circle cx={circleCentreX} cy={circleCentreY} r={radius} fill={color} />
     </svg>
   );
 }
 
-function severityColorRepresentation(severity) {
-  if (severity === 'CRITICAL') {
-    return '#EA4335';
-  } if (severity === 'WARNING') {
-    return '#FBBC05';
-  } if (severity === 'ERROR') {
-    return '#b9abc6';
-  }
-  return '#34A853';
-}
-
-function AlertsTableContent({ alerts }) {
+function LiveAlertsTableContent({ alerts }) {
   const content = [];
   let currentDate = null;
 
@@ -56,7 +43,6 @@ function AlertsTableContent({ alerts }) {
     );
     return content;
   }
-
   for (let i = 0; i < alerts.length; i += 1) {
     // Works only if alerts are ordered by date in recent-first way.
     if (currentDate
@@ -69,23 +55,30 @@ function AlertsTableContent({ alerts }) {
         </tr>,
       );
     }
-    const severityColor = severityColorRepresentation(alerts[i].severity);
 
+    const severityColor = SEVERITY_COLOUR_REPRESENTATION[alerts[i].severity];
     content.push(
       <tr key={i}>
-        <td className="time-style">{createCircle(severityColor, 10)}</td>
-        <OverlayTrigger
+        <td className="time-style">
+          <SeverityCircle
+            svgHeight={21}
+            svgWidth={21}
+            circleCentreX={10}
+            circleCentreY={10}
+            color={severityColor}
+            radius={10}
+          />
+        </td>
+        <TooltipOverlay
+          identifier="tooltip-top"
           placement="top"
-          overlay={(
-            <Tooltip id="tooltip-top">
-              {moment.unix(alerts[i].timestamp).format('DD-MM-YYYY')}
-            </Tooltip>
+          tooltipText={moment.unix(alerts[i].timestamp).format('DD-MM-YYYY')}
+          component={(
+            <td className="time-style">
+              {moment.unix(alerts[i].timestamp).format('HH:mm:ss')}
+            </td>
           )}
-        >
-          <td className="time-style">
-            {moment.unix(alerts[i].timestamp).format('HH:mm:ss')}
-          </td>
-        </OverlayTrigger>
+        />
         <td>{alerts[i].message}</td>
       </tr>,
     );
@@ -94,7 +87,7 @@ function AlertsTableContent({ alerts }) {
   return content;
 }
 
-function AlertsTable({ alerts }) {
+function LiveAlertsTable({ alerts }) {
   return (
     <Table responsive size="sm" className="tables-style">
       <thead>
@@ -105,52 +98,45 @@ function AlertsTable({ alerts }) {
         </tr>
       </thead>
       <tbody>
-        <AlertsTableContent alerts={alerts} />
+        <LiveAlertsTableContent alerts={alerts} />
       </tbody>
     </Table>
   );
 }
 
-function NextPageButton({ onClick }) {
-  return (
-    <Button className="rounded-circle ml-auto button-style" onClick={onClick}>
-      <FontAwesomeIcon icon={faChevronRight} color="white" />
-    </Button>
-  );
-}
-
-function PreviousPageButton({ onClick }) {
-  return (
-    <Button className="rounded-circle mr-auto button-style" onClick={onClick}>
-      <FontAwesomeIcon icon={faChevronLeft} color="white" />
-    </Button>
-  );
-}
-
-function AlertsInfo({
+function LiveAlerts({
   alerts, activePage, onClickPreviousPage, onClickNextPage, totalPages,
 }) {
   const navButtons = [];
-
   // Do not display previous page button if on the first page
   if (activePage !== 1) {
     navButtons.push(
-      <PreviousPageButton onClick={onClickPreviousPage} key={1} />,
+      <ChevronButton
+        className="rounded-circle mr-auto button-style"
+        onClick={onClickPreviousPage}
+        chevronColour="white"
+        direction="left"
+        key={1}
+      />,
     );
   }
-
-  // Do not display next page button if we are on the last page or there are no
-  // alerts.
+  // Do not display the next page button if we are on the last page or there not
+  // enough pages.
   if (activePage !== totalPages && totalPages > 0) {
     navButtons.push(
-      <NextPageButton onClick={onClickNextPage} key={2} />,
+      <ChevronButton
+        className="rounded-circle ml-auto button-style"
+        onClick={onClickNextPage}
+        chevronColour="white"
+        direction="right"
+        key={2}
+      />,
     );
   }
-
   return (
     <Container>
       <h1 className="heading-style-1">Live Alerts</h1>
-      <AlertsTable alerts={alerts} />
+      <LiveAlertsTable alerts={alerts} />
       <Container className="buttons-placement-style">{navButtons}</Container>
     </Container>
   );
@@ -159,7 +145,7 @@ function AlertsInfo({
 class AlertLogs extends Component {
   constructor(props) {
     super(props);
-    this.noOfAlerts = 50;
+    this.alertsPerPage = 50;
     this.dataTimer = null;
     this.state = {
       alerts: [],
@@ -178,7 +164,7 @@ class AlertLogs extends Component {
 
   componentDidUpdate(_prevProps, _prevState, _snapshot) {
     // If the user deletes elements from the database and a page no longer has
-    // alerts, fetch data of the previous page if it exists. If the number of
+    // alerts, fetch data of the last page that exists. If the number of
     // alerts went to zero, do nothing.
     const { state } = this;
     if (state.activePage > state.totalPages && state.totalPages > 0) {
@@ -203,12 +189,12 @@ class AlertLogs extends Component {
     const alerts = [];
     let response;
     try {
-      response = await getAlerts(this.noOfAlerts, state.activePage);
+      response = await getAlerts(this.alertsPerPage, state.activePage);
     } catch (e) {
       if (e.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
-        if (e.response.data.error === 'Mongo not set up') {
+        if (e.response.data.error === MONGO_NOT_SET_UP.message) {
           // If MongoDB not set up reset everything to default.
           this.setState({ alerts, totalPages: 1, isFetchingData: false });
         }
@@ -231,7 +217,6 @@ class AlertLogs extends Component {
 
     this.setState({ alerts, totalPages, isFetchingData: false });
   }
-
 
   handleNextPage() {
     this.setState((prevState) => {
@@ -256,58 +241,37 @@ class AlertLogs extends Component {
   render() {
     const { state } = this;
     return (
-      <div>
-        {
-          state.isFetchingData
-            ? (
-              <div className="div-spinner-style">
-                <Spinner
-                  animation="border"
-                  role="status"
-                  className="spinner-style"
-                />
-              </div>
-            )
-            : (
-              <AlertsInfo
-                alerts={state.alerts}
-                onClickNextPage={() => this.handleNextPage()}
-                onClickPreviousPage={() => this.handlePreviousPage()}
-                totalPages={state.totalPages}
-                activePage={state.activePage}
-              />
-            )
-        }
-        <ToastsContainer
-          store={ToastsStore}
-          position={ToastsContainerPosition.TOP_CENTER}
-          lightBackground
-        />
-      </div>
+      <Page
+        spinnerCondition={state.isFetchingData}
+        component={(
+          <LiveAlerts
+            alerts={state.alerts}
+            onClickNextPage={() => this.handleNextPage()}
+            onClickPreviousPage={() => this.handlePreviousPage()}
+            totalPages={state.totalPages}
+            activePage={state.activePage}
+          />
+        )}
+      />
     );
   }
 }
 
-const alertType = PropTypes.shape({
-  severity_: PropTypes.string,
-  message_: PropTypes.string,
-  timestamp_: PropTypes.number,
+SeverityCircle.propTypes = forbidExtraProps({
+  svgHeight: PropTypes.number.isRequired,
+  svgWidth: PropTypes.number.isRequired,
+  circleCentreX: PropTypes.number.isRequired,
+  circleCentreY: PropTypes.number.isRequired,
+  color: PropTypes.string.isRequired,
+  radius: PropTypes.number.isRequired,
 });
 
-AlertsTable.propTypes = forbidExtraProps({
-  alerts: PropTypes.arrayOf(alertType).isRequired,
+LiveAlertsTable.propTypes = forbidExtraProps({
+  alerts: PropTypes.arrayOf(ALERT_TYPE).isRequired,
 });
 
-NextPageButton.propTypes = forbidExtraProps({
-  onClick: PropTypes.func.isRequired,
-});
-
-PreviousPageButton.propTypes = forbidExtraProps({
-  onClick: PropTypes.func.isRequired,
-});
-
-AlertsInfo.propTypes = forbidExtraProps({
-  alerts: PropTypes.arrayOf(alertType).isRequired,
+LiveAlerts.propTypes = forbidExtraProps({
+  alerts: PropTypes.arrayOf(ALERT_TYPE).isRequired,
   activePage: PropTypes.number.isRequired,
   onClickPreviousPage: PropTypes.func.isRequired,
   onClickNextPage: PropTypes.func.isRequired,

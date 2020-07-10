@@ -26,15 +26,20 @@ def start_node_monitor(node_monitor: NodeMonitor, monitor_period: int,
             logger.debug('Reading %s.', node_monitor.node)
             node_monitor.monitor_direct()
             logger.debug('Done reading %s.', node_monitor.node)
-        except (ConnectionWithNodeApiLostException,
-                NodeWasNotConnectedToApiServerException):
+        except NodeWasNotConnectedToApiServerException:
+            # Although the node was not connected to the API, the API was
+            # reachable
+            node_monitor.data_wrapper.set_api_as_up(node_monitor.monitor_name,
+                                                    node_monitor.channels)
+            node_monitor.node.disconnect_from_api(node_monitor.channels, logger)
+        except ConnectionWithNodeApiLostException:
             node_monitor.node.set_as_down(node_monitor.channels, logger)
         except (ReqConnectionError, ReadTimeout):
-            node_monitor.data_wrapper.set_api_as_down(node_monitor.monitor_name,
-                                                      node_monitor.channels)
+            node_monitor.data_wrapper.set_api_as_down(
+                node_monitor.monitor_name, node_monitor.node.is_validator,
+                node_monitor.channels)
         except (http.client.IncompleteRead, urllib3.exceptions.IncompleteRead,
-                ApiCallFailedException) \
-                as e:
+                ApiCallFailedException) as e:
             logger.error(e)
             logger.error("Alerter will continue running normally.")
         except (UnexpectedApiCallErrorException,
@@ -66,14 +71,20 @@ def start_node_monitor(node_monitor: NodeMonitor, monitor_period: int,
                     node_monitor.last_data_source_used,
                     node_monitor.monitor_name))
                 node_monitor.last_data_source_used._is_archive_node = False
-            except (ConnectionWithNodeApiLostException,
-                    NodeWasNotConnectedToApiServerException):
+            except NodeWasNotConnectedToApiServerException:
+                # Although the node was not connected to the API, the API was
+                # reachable
+                node_monitor.data_wrapper.set_api_as_up(
+                    node_monitor.monitor_name, node_monitor.channels)
+                node_monitor.last_data_source_used.disconnect_from_api(
+                    node_monitor.channels, logger)
+            except ConnectionWithNodeApiLostException:
                 node_monitor.last_data_source_used.set_as_down(
                     node_monitor.channels,
                     logger)
             except (ReqConnectionError, ReadTimeout):
                 node_monitor.data_wrapper.set_api_as_down(
-                    node_monitor.monitor_name,
+                    node_monitor.monitor_name, node_monitor.node.is_validator,
                     node_monitor.channels)
             except (
                     http.client.IncompleteRead,
@@ -116,13 +127,20 @@ def start_blockchain_monitor(blockchain_monitor: BlockchainMonitor,
             blockchain_monitor.channels.alert_critical(
                 CouldNotFindLiveNodeConnectedToApiServerAlert(
                     blockchain_monitor.monitor_name))
-        except (ConnectionWithNodeApiLostException,
-                NodeWasNotConnectedToApiServerException):
+        except NodeWasNotConnectedToApiServerException:
+            # Although the node was not connected to the API, the API was
+            # reachable
+            blockchain_monitor.data_wrapper.set_api_as_up(
+                blockchain_monitor.monitor_name, blockchain_monitor.channels)
+            blockchain_monitor.last_data_source_used.disconnect_from_api(
+                blockchain_monitor.channels, logger)
+        except ConnectionWithNodeApiLostException:
             blockchain_monitor.last_data_source_used.set_as_down(
                 blockchain_monitor.channels, logger)
         except (ReqConnectionError, ReadTimeout):
             blockchain_monitor.data_wrapper.set_api_as_down(
-                blockchain_monitor.monitor_name, blockchain_monitor.channels)
+                blockchain_monitor.monitor_name, False,
+                blockchain_monitor.channels)
         except (http.client.IncompleteRead, urllib3.exceptions.IncompleteRead,
                 ApiCallFailedException) as e:
             logger.error(e)

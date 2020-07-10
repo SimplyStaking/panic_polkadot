@@ -32,6 +32,7 @@ const getKeysNodeMonitor = () => ({
   alive: 'nm1',
   session_index: 'nm2',
   last_height_checked: 'nm3',
+  era_index: 'nm4',
 });
 
 // bcX_<chain_name>

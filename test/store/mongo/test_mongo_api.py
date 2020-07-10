@@ -22,8 +22,8 @@ class TestMongoApiWithMongoOnline(unittest.TestCase):
         port = TestUserConf.mongo_port
         user = TestUserConf.mongo_user
         password = TestUserConf.mongo_pass
-        mongo = MongoApi(logger, db, host, port,
-                         username=user, password=password)
+        mongo = MongoApi(logger, db, host, port, username=user,
+                         password=password)
 
         # Ping Mongo
         try:

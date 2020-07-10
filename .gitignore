@@ -19,6 +19,11 @@ yarn-error.log*
 config/user_config_main.ini
 config/user_config_nodes.ini
 config/user_config_repos.ini
+config/user_config_ui.ini
+
+# sessions
+src/web/ui/sessions/*.json*
+!src/web/ui/sessions/.gitkeep
 
 # dependencies
 node_modules/

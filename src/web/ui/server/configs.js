@@ -4,6 +4,7 @@ const path = require('path');
 const USER_CONFIG_MAIN = 'user_config_main.ini';
 const USER_CONFIG_NODES = 'user_config_nodes.ini';
 const USER_CONFIG_REPOS = 'user_config_repos.ini';
+const USER_CONFIG_UI = 'user_config_ui.ini';
 const INTERNAL_CONFIG_MAIN = 'internal_config_main.ini';
 const INTERNAL_CONFIG_ALERTS = 'internal_config_alerts.ini';
 const ALL_CONFIG_FILES = [
@@ -29,6 +30,7 @@ module.exports = {
   USER_CONFIG_MAIN,
   USER_CONFIG_NODES,
   USER_CONFIG_REPOS,
+  USER_CONFIG_UI,
   INTERNAL_CONFIG_MAIN,
   INTERNAL_CONFIG_ALERTS,
   ALL_CONFIG_FILES,

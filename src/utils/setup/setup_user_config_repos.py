@@ -36,13 +36,20 @@ def get_repo(repos_so_far: List[RepoConfig]) -> Optional[RepoConfig]:
             if 'message' in releases and releases['message'] == 'Not Found':
                 if not yn_prompt('Connection successful, but URL is not valid. '
                                  'Do you want to try again? (Y/n)\n'):
-                    return None
+                    if not yn_prompt(
+                            'Do you still want to add the repo? (Y/n)\n'):
+                        return None
+                    else:
+                        break
             else:
                 break  # success message left to setup_repos function
         except Exception:
             if not yn_prompt('Failed to connect to page. Do '
                              'you want to try again? (Y/n)\n'):
-                return None
+                if not yn_prompt('Do you still want to add the repo? (Y/n)\n'):
+                    return None
+                else:
+                    break
 
     # Return node
     return RepoConfig(repo_name, repo_page, True)

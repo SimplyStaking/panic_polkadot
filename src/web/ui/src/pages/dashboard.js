@@ -1,33 +1,29 @@
 import React, { Component } from 'react';
-import Badge from 'react-bootstrap/Badge';
-import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Container from 'react-bootstrap/Container';
-import Nav from 'react-bootstrap/Nav';
-import Navbar from 'react-bootstrap/Navbar';
-import NavDropdown from 'react-bootstrap/NavDropdown';
 import Row from 'react-bootstrap/Row';
-import Tab from 'react-bootstrap/Tab';
 import Table from 'react-bootstrap/Table';
-import Tabs from 'react-bootstrap/Tabs';
-import Spinner from 'react-bootstrap/Spinner';
-import Tooltip from 'react-bootstrap/Tooltip';
-import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import PropTypes from 'prop-types';
 import { forbidExtraProps } from 'airbnb-prop-types';
-import {
-  ToastsContainer,
-  ToastsContainerPosition,
-  ToastsStore,
-} from 'react-toasts';
+import { ToastsStore } from 'react-toasts';
 import moment from 'moment';
-import '../style/style.css';
-import Blockchain from '../components/blockchain';
-import Node from '../components/node';
-import Monitor from '../components/monitor';
 import { getAllChainInfo, getChainNames } from '../utils/data';
-import { MONITOR_TYPES } from '../utils/constants';
-import scaleToPico from '../utils/scaling';
+import {
+  MONITOR_TYPES, BLOCKCHAIN_TYPE, MONITOR_TYPE, NODE_TYPE,
+} from '../utils/constants';
+import {
+  createBlockchainFromJson,
+  createMonitorStats,
+  createMonitorTypeFromJson,
+  createNodesFromJson,
+} from '../utils/dashboard';
+import Page from '../components/page';
+import ChainsDropDown from '../components/dropdowns';
+import NodeBadges from '../components/badges';
+import { BlockchainDataGrid } from '../components/grids';
+import NodeSelectionTabs from '../components/tabs';
+import '../style/style.css';
+import TooltipOverlay from '../components/overlays';
 
 moment.locale('en');
 moment.updateLocale('en', {
@@ -51,194 +47,6 @@ moment.relativeTimeThreshold('dd', 28);
 moment.relativeTimeThreshold('MM', 12);
 moment.relativeTimeRounding(Math.floor);
 
-function createChainDropDownItems(elements, activeChainIndex) {
-  const items = [];
-  for (let i = 0; i < elements.length; i += 1) {
-    if (i !== activeChainIndex) {
-      items.push(
-        <NavDropdown.Item
-          eventKey={i}
-          className="navbar-item"
-          key={elements[i]}
-        >
-          {elements[i]}
-        </NavDropdown.Item>,
-      );
-    }
-  }
-  return items;
-}
-
-function createCard(title, data) {
-  return (
-    <Card className="cards-style" bg="light">
-      <Card.Body>
-        <Card.Title>{title}</Card.Title>
-        <Card.Text>{data}</Card.Text>
-      </Card.Body>
-    </Card>
-  );
-}
-
-function ChainsDropDown({ chainNames, activeChainIndex, handleSelectChain }) {
-  return (
-    <Navbar collapseOnSelect expand="lg" variant="light" bg="light">
-      <Container>
-        <Nav activeKey={activeChainIndex} onSelect={handleSelectChain}>
-          <NavDropdown title={chainNames[activeChainIndex]} id="chain-nav">
-            {createChainDropDownItems(chainNames, activeChainIndex)}
-          </NavDropdown>
-        </Nav>
-      </Container>
-    </Navbar>
-  );
-}
-
-
-function BlockchainDataGrid({ activeChain }) {
-  const referendumCount = activeChain.referendumCount === -1
-    ? 'N/a' : activeChain.referendumCount;
-  const publicPropCount = activeChain.publicPropCount === -1
-    ? 'N/a' : activeChain.publicPropCount;
-  const councilPropCount = activeChain.councilPropCount === -1
-    ? 'N/a' : activeChain.councilPropCount;
-  const validatorSetSize = activeChain.validatorSetSize === -1
-    ? 'N/a' : activeChain.validatorSetSize;
-  return (
-    <Container>
-      <Row>
-        <Col>
-          {createCard('Total Referendums', referendumCount)}
-        </Col>
-        <Col>
-          {createCard(
-            'Total Public Proposals', publicPropCount,
-          )}
-        </Col>
-        <Col>
-          {createCard(
-            'Total Council Proposals', councilPropCount,
-          )}
-        </Col>
-        <Col>
-          {createCard('Validator Set Size', validatorSetSize)}
-        </Col>
-      </Row>
-    </Container>
-  );
-}
-
-function createNodeTabs(nodes, activeChain) {
-  const tabs = [];
-  for (let i = 0; i < nodes.length; i += 1) {
-    if (nodes[i].chain === activeChain.name) {
-      tabs.push(
-        <Tab eventKey={i} title={nodes[i].name} key={nodes[i].name}>
-          <NodeContent node={nodes[i]} />
-        </Tab>,
-      );
-    }
-  }
-  return tabs;
-}
-
-function NodeSelectionTabs({
-  nodes, activeNodeIndex, activeChain, handleSelectNode,
-}) {
-  return (
-    <Tabs
-      id="nodes-tabs"
-      activeKey={activeNodeIndex}
-      onSelect={handleSelectNode}
-      className="tabs-style"
-    >
-      {createNodeTabs(nodes, activeChain)}
-    </Tabs>
-  );
-}
-
-function NodeDataGrid({ node }) {
-  const noOfPeers = node.noOfPeers === -1 ? 'N/a' : node.noOfPeers;
-  const height = node.height === -1 ? 'N/a' : node.height;
-  const bondedBalance = node.bondedBalance === -1
-    ? 'N/a' : scaleToPico(node.bondedBalance);
-  const noOfBlocksAuthored = node.noOfBlocksAuthored === -1
-    ? 'N/a' : node.noOfBlocksAuthored;
-
-  const content = [
-    <Col key="Peers">{createCard('Peers', noOfPeers)}</Col>,
-    <Col key="Height Update">
-      {
-        node.lastHeightUpdate === -1
-          ? createCard('Finalized Height Update', 'no update')
-          : (
-            <OverlayTrigger
-              placement="top"
-              overlay={(
-                <Tooltip id="tooltip-top">
-                  {moment.unix(node.lastHeightUpdate).format(
-                    'DD-MM-YYYY HH:mm:ss',
-                  )
-                  }
-                </Tooltip>
-                )}
-            >
-              { createCard('Finalized Height Update', moment.unix(
-                node.lastHeightUpdate,
-              ).fromNow())}
-            </OverlayTrigger>
-          )
-      }
-    </Col>,
-    <Col key="Finalized Height">{createCard('Finalized Height', height)}</Col>,
-  ];
-  if (node.isDown) {
-    content.push(
-      <Col key="Down Since">
-        <OverlayTrigger
-          placement="top"
-          overlay={(
-            <Tooltip id="tooltip-top">
-              {moment.unix(node.wentDownAt).format('DD-MM-YYYY HH:mm:ss')}
-            </Tooltip>
-            )}
-        >
-          {
-            createCard('Down Since', moment.unix(node.wentDownAt).fromNow())
-          }
-        </OverlayTrigger>
-      </Col>,
-    );
-  }
-
-  if (node.isValidator) {
-    content.push(
-      <Col key="Blocks Authored">
-        {createCard('Blocks Authored', noOfBlocksAuthored)}
-      </Col>,
-    );
-    content.push(
-      <Col key="Bonded Balance">
-        {createCard('Bonded Balance', bondedBalance)}
-      </Col>,
-    );
-  }
-
-  return (
-    <div>
-      <Row>{content}</Row>
-    </div>
-  );
-}
-
-function NodeContent({ node }) {
-  return (
-    <div>
-      <NodeDataGrid node={node} />
-    </div>
-  );
-}
-
 function MoreDetails({
   nodes, activeNodeIndex, activeChain, handleSelectNode,
 }) {
@@ -255,70 +63,19 @@ function MoreDetails({
   );
 }
 
-function createBadge(name, variant, key) {
-  return (
-    <Badge variant={variant} className="badges-style" key={key}>
-      {name}
-    </Badge>
-  );
-}
-
-function NodeBadges(props) {
-  const { node } = props;
-  let syncingBadge = null;
-  let activeBadge = null;
-  let disabledBadge = null;
-  let electedBadge = null;
-  let councilMemberBadge = null;
-  if (node.isSyncing !== -1) {
-    syncingBadge = node.isSyncing
-      ? createBadge('Syncing', 'warning', 'Syncing')
-      : createBadge('Synced', 'success', 'Synced');
-  }
-  const badges = [
-    node.isDown ? createBadge('Down', 'danger', 'Down')
-      : createBadge('Up', 'success', 'Up'),
-    syncingBadge,
-  ];
-  if (node.isValidator) {
-    if (node.isActive !== -1) {
-      activeBadge = node.isActive ? createBadge('Active', 'success', 'Active')
-        : createBadge('Inactive', 'danger', 'Inactive');
-    }
-    if (node.isDisabled !== -1) {
-      disabledBadge = node.isDisabled
-        ? createBadge('Disabled', 'danger', 'Disabled')
-        : createBadge('Enabled', 'success', 'Enabled');
-    }
-    if (node.isElected !== -1) {
-      electedBadge = node.isElected
-        ? createBadge('Elected', 'success', 'Elected')
-        : createBadge('Not Elected', 'warning', 'Not Elected');
-    }
-    if (node.isCouncilMember !== -1) {
-      councilMemberBadge = node.isCouncilMember
-        && createBadge('Council Member', 'primary', 'Council Member');
-    }
-    badges.push(activeBadge, disabledBadge, electedBadge, councilMemberBadge);
-  }
-  return badges;
-}
-
 function NodesOverviewTableContent({ nodes, activeChain }) {
   const content = [];
-
   for (let i = 0; i < nodes.length; i += 1) {
     if (nodes[i].chain === activeChain.name) {
       content.push(
         <tr key={nodes[i].name}>
           <td>{nodes[i].name}</td>
-          <td>
-            <NodeBadges node={nodes[i]} />
-          </td>
+          <td><NodeBadges node={nodes[i]} /></td>
         </tr>,
       );
     }
   }
+
   return content;
 }
 
@@ -332,10 +89,7 @@ function NodesOverviewTable({ nodes, activeChain }) {
         </tr>
       </thead>
       <tbody>
-        <NodesOverviewTableContent
-          nodes={nodes}
-          activeChain={activeChain}
-        />
+        <NodesOverviewTableContent nodes={nodes} activeChain={activeChain} />
       </tbody>
     </Table>
   );
@@ -360,14 +114,10 @@ function NodesOverview({
 
 function BlockchainStats({ activeChain }) {
   return (
-    <div>
-      <Container>
-        <h1 className="heading-style-1">Blockchain Statistics</h1>
-      </Container>
-      <BlockchainDataGrid
-        activeChain={activeChain}
-      />
-    </div>
+    <Container>
+      <h1 className="heading-style-1">Blockchain Statistics</h1>
+      <BlockchainDataGrid activeChain={activeChain} />
+    </Container>
   );
 }
 
@@ -376,28 +126,27 @@ function MonitorsStatusTableContent({ monitors }) {
 
   for (let i = 0; i < monitors.length; i += 1) {
     const monitor = monitors[i];
+    const monitorStats = createMonitorStats(monitor);
     content.push(
       <tr key={monitor.name}>
         <td>{monitor.name}</td>
         <td>{monitor.type}</td>
         {
           monitor.lastUpdate === -1
-            ? <td className="time-style">no recent update</td>
+            ? <td className="time-style">{monitorStats.lastUpdate}</td>
             : (
-              <OverlayTrigger
+              <TooltipOverlay
+                identifier="tooltip-top"
                 placement="top"
-                overlay={(
-                  <Tooltip id="tooltip-top">
-                    {moment.unix(monitor.lastUpdate).format(
-                      'DD-MM-YYYY HH:mm:ss',
-                    )}
-                  </Tooltip>
+                tooltipText={moment.unix(monitorStats.lastUpdate).format(
+                  'DD-MM-YYYY HH:mm:ss',
                 )}
-              >
-                <td className="time-style">
-                  {moment.unix(monitor.lastUpdate).fromNow()}
-                </td>
-              </OverlayTrigger>
+                component={(
+                  <td className="time-style">
+                    {moment.unix(monitorStats.lastUpdate).fromNow()}
+                  </td>
+                )}
+              />
             )
           }
       </tr>,
@@ -411,9 +160,14 @@ function MonitorsStatusTable({ monitors }) {
     <Table responsive className="tables-style-3">
       <thead>
         <tr>
-          <th>Monitor</th>
-          <th>Type</th>
-          <th className="column-style">Last Update</th>
+          <th style={{ minWidth: '200px' }}>Monitor</th>
+          <th style={{ minWidth: '200px' }}>Type</th>
+          <th
+            className="column-style"
+            style={{ minWidth: '200px' }}
+          >
+            Last Update
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -436,13 +190,13 @@ class Dashboard extends Component {
   constructor(props) {
     super(props);
     this.dataTimer = null;
-    this.clockTimer = null;
+    this.clock = null;
     this.state = {
       chainNames: [],
       activeChain: null,
       activeChainJson: {},
       isFetchingData: true,
-      // By default select the first chain if there are chains
+      // By default select the first chain
       activeChainIndex: 0,
       nodes: [],
       // By default select the first node of the active chain
@@ -457,16 +211,16 @@ class Dashboard extends Component {
     const { state } = this;
     this.fetchData();
     this.dataTimer = setInterval(this.fetchData.bind(this), 5000);
-    this.clockTimer = setInterval(() => this.setState({
+    this.clock = setInterval(() => this.setState({
       updateClock: !state.updateClock,
     }), 500);
   }
 
   componentWillUnmount() {
     clearInterval(this.dataTimer);
-    clearInterval(this.clockTimer);
+    clearInterval(this.clock);
     this.dataTimer = null;
-    this.clockTimer = null;
+    this.clock = null;
   }
 
   async fetchData() {
@@ -538,22 +292,10 @@ class Dashboard extends Component {
       return -1;
     }
     const chainInfo = response.data.result;
-    const referendumCount = chainInfo.blockchain.referendum_count === null
-    || chainInfo.blockchain.referendum_count === 'None'
-      ? -1 : parseInt(chainInfo.blockchain.referendum_count, 10);
-    const publicPropCount = chainInfo.blockchain.public_prop_count === null
-    || chainInfo.blockchain.public_prop_count === 'None'
-      ? -1 : parseInt(chainInfo.blockchain.public_prop_count, 10);
-    const councilPropCount = chainInfo.blockchain.council_prop_count === null
-    || chainInfo.blockchain.council_prop_count === 'None'
-      ? -1 : parseInt(chainInfo.blockchain.council_prop_count, 10);
-    const validatorSetSize = chainInfo.blockchain.validator_set_size === null
-    || chainInfo.blockchain.validator_set_size === 'None'
-      ? -1 : parseInt(chainInfo.blockchain.validator_set_size, 10);
+    const activeChain = createBlockchainFromJson(activeChainName, chainInfo);
     this.setState({
       chainNames,
-      activeChain: new Blockchain(activeChainName, referendumCount,
-        publicPropCount, councilPropCount, validatorSetSize),
+      activeChain,
       activeChainJson: chainInfo,
       redisErrorOnChainChange: false,
     });
@@ -562,70 +304,24 @@ class Dashboard extends Component {
 
   fetchNodes() {
     const { state } = this;
-    const nodes = [];
     const nodesJson = state.activeChainJson.nodes;
-    Object.entries(nodesJson).forEach(([node, data]) => {
-      const chain = state.activeChain.name;
-      const isDown = data.went_down_at === null ? false
-        : data.went_down_at !== 'None';
-      const isValidator = data.is_validator === null ? -1
-        : data.is_validator.toLowerCase() === 'true';
-      const wentDownAt = data.went_down_at === null ? -1
-        : parseFloat(data.went_down_at);
-      const isSyncing = data.is_syncing === null ? -1
-        : data.is_syncing.toLowerCase() === 'true';
-      const noOfPeers = data.no_of_peers === null
-      || data.no_of_peers === 'None' ? -1 : parseInt(data.no_of_peers, 10);
-      const timeOfLastHeightChange = data.time_of_last_height_change === null
-        ? -1 : parseFloat(data.time_of_last_height_change);
-      const finalizedBlockHeight = data.finalized_block_height === null ? -1
-        : parseInt(data.finalized_block_height, 10);
-      const bondedBalance = data.bonded_balance === null
-      || data.bonded_balance === 'None' ? -1
-        : parseInt(data.bonded_balance, 10);
-      const active = data.active === null || data.active === 'None' ? -1
-        : data.active.toLowerCase() === 'true';
-      const disabled = data.disabled === null || data.disabled === 'None' ? -1
-        : data.disabled.toLowerCase() === 'true';
-      const elected = data.elected === null || data.elected === 'None' ? -1
-        : data.elected.toLowerCase() === 'true';
-      const councilMember = data.council_member === null
-      || data.council_member === 'None' ? -1
-        : data.council_member.toLowerCase() === 'true';
-      const noOfBlocksAuthored = data.noOfBlocksAuthored === null ? -1
-        : parseInt(data.no_of_blocks_authored, 10);
-
-      nodes.push(
-        new Node(node, chain, isValidator, wentDownAt, isDown, isSyncing,
-          noOfPeers, timeOfLastHeightChange, finalizedBlockHeight,
-          bondedBalance, active, disabled, elected, councilMember,
-          noOfBlocksAuthored),
-      );
-    });
+    const nodes = createNodesFromJson(state.activeChain, nodesJson);
     this.setState({ nodes });
   }
 
   fetchMonitors() {
     const { state } = this;
-    const monitors = [];
-    const nodeMonitorsJson = state.activeChainJson.monitors.node;
-    const blockchainMonitorsJson = state.activeChainJson.monitors.blockchain;
-    Object.entries(nodeMonitorsJson).forEach(([monitor, data]) => {
-      const chain = state.activeChain.name;
-      const monitorName = `${monitor}`;
-      const lastUpdate = data.alive === null ? -1 : parseFloat(data.alive);
-      monitors.push(new Monitor(
-        monitorName, chain, lastUpdate, MONITOR_TYPES.node_monitor,
-      ));
-    });
-    Object.entries(blockchainMonitorsJson).forEach(([monitor, data]) => {
-      const chain = state.chainNames[state.activeChainIndex];
-      const monitorName = `${monitor}`;
-      const lastUpdate = data.alive === null ? -1 : parseFloat(data.alive);
-      monitors.push(new Monitor(
-        monitorName, chain, lastUpdate, MONITOR_TYPES.blockchain_monitor,
-      ));
-    });
+    const nodeMonitors = createMonitorTypeFromJson(
+      state.activeChain,
+      state.activeChainJson.monitors,
+      MONITOR_TYPES.node_monitor,
+    );
+    const blockchainMonitors = createMonitorTypeFromJson(
+      state.activeChain,
+      state.activeChainJson.monitors,
+      MONITOR_TYPES.blockchain_monitor,
+    );
+    const monitors = nodeMonitors.concat(blockchainMonitors);
     this.setState({ monitors });
   }
 
@@ -633,7 +329,8 @@ class Dashboard extends Component {
     // This must be done because the 'selectedChain' value is passed as string.
     const selectedChainParsed = parseInt(selectedChain, 10);
 
-    // Set the active node to the first node of the selected chain
+    // Set the active node to the first node of the selected chain and fetch
+    // it's data
     this.setState({
       isFetchingData: true,
       activeChainIndex: selectedChainParsed,
@@ -653,171 +350,95 @@ class Dashboard extends Component {
   render() {
     const { state } = this;
     return (
-      <div>
-        {state.isFetchingData || state.redisErrorOnChainChange
-          ? (
-            <div className="div-spinner-style">
-              <Spinner
-                animation="border"
-                role="status"
-                className="spinner-style"
-              />
-            </div>
-          )
-          : (
-            <div>
-              {state.chainNames.length > 0
-                ? (
-                  <div>
-                    <ChainsDropDown
-                      chainNames={state.chainNames}
-                      activeChainIndex={state.activeChainIndex}
-                      handleSelectChain={chain => this.handleSelectChain(chain)}
+      <Page
+        spinnerCondition={state.isFetchingData || state.redisErrorOnChainChange}
+        component={(
+          <div>
+            {state.chainNames.length > 0
+              ? (
+                <div>
+                  <ChainsDropDown
+                    chainNames={state.chainNames}
+                    activeChainIndex={state.activeChainIndex}
+                    handleSelectChain={chain => this.handleSelectChain(chain)}
+                  />
+                  {Object.keys(state.activeChainJson.monitors.blockchain)
+                    .length > 0 && (
+                    <BlockchainStats
+                      activeChain={state.activeChain}
                     />
-                    {Object.keys(state.activeChainJson.monitors.blockchain)
-                      .length > 0 && (
-                        <BlockchainStats
-                          activeChain={state.activeChain}
-                        />
-                    )
-                    }
-                    { state.nodes.length > 0
-                    && (
+                  )
+                  }
+                  { state.nodes.length > 0
+                  && (
                     <NodesOverview
                       nodes={state.nodes}
                       activeChain={state.activeChain}
                       activeNodeIndex={state.activeNodeIndex}
                       handleSelectNode={node => this.handleSelectNode(node)}
                     />
-                    )
-                    }
-                    <MonitorsStatus monitors={state.monitors} />
-                  </div>
-                )
-                : (
-                  <Container
-                    className="my-auto text-center error d-flex
+                  )
+                  }
+                  <MonitorsStatus monitors={state.monitors} />
+                </div>
+              )
+              : (
+                <Container
+                  className="my-auto text-center error d-flex
+                    align-items-center"
+                >
+                  <Row className="m-auto justify-content-center
                     align-items-center"
                   >
-                    <Row className="m-auto justify-content-center
-                    align-items-center"
-                    >
-                      <Col xs="auto">
-                        <p className="lead">
-                          The nodes&apos; user config or Redis must be
-                          mis-configured. Please set up PANIC and Redis using
-                          the Settings pages and do not forget to (re)start
-                          PANIC afterwards! Also please make sure that Redis is
-                          running.
-                        </p>
-                      </Col>
-                    </Row>
-                  </Container>
-                )
-              }
-            </div>
-          )
-          }
-        <ToastsContainer
-          store={ToastsStore}
-          position={ToastsContainerPosition.TOP_CENTER}
-          lightBackground
-        />
-      </div>
+                    <Col xs="auto">
+                      <p className="lead">
+                        The nodes&apos; user config or Redis must be
+                        mis-configured. Please set up PANIC and Redis using
+                        the Settings pages and do not forget to (re)start
+                        PANIC afterwards! Also please make sure that Redis is
+                        running.
+                      </p>
+                    </Col>
+                  </Row>
+                </Container>
+              )
+            }
+          </div>
+        )}
+      />
     );
   }
 }
 
-// TODO: Need to organize code in sections, components etc.. example folder
-//      dashboard. Chain info must also have component on its own with its
-//      heading like others. Copy format like last two sections.
-
-const blockchainType = PropTypes.shape({
-  name: PropTypes.string,
-  referendumCount: PropTypes.number,
-  publicPropCount: PropTypes.number,
-  councilPropCount: PropTypes.number,
-  validatorSetSize: PropTypes.number,
-});
-
-const nodeType = PropTypes.shape({
-  name: PropTypes.string,
-  chain: PropTypes.string,
-  isValidator: PropTypes.bool,
-  wentDownAt: PropTypes.number,
-  isDown: PropTypes.bool,
-  isSyncing: PropTypes.oneOfType([PropTypes.number, PropTypes.bool]),
-  noOfPeers: PropTypes.number,
-  lastHeightUpdate: PropTypes.number,
-  height: PropTypes.number,
-  bondedBalance: PropTypes.number,
-  isActive: PropTypes.oneOfType([PropTypes.number, PropTypes.bool]),
-  isDisabled: PropTypes.oneOfType([PropTypes.number, PropTypes.bool]),
-  isElected: PropTypes.oneOfType([PropTypes.number, PropTypes.bool]),
-  isCouncilMember: PropTypes.oneOfType([PropTypes.number, PropTypes.bool]),
-  noOfBlocksAuthored: PropTypes.number,
-});
-
-const monitorType = PropTypes.shape({
-  name: PropTypes.string,
-  chain: PropTypes.string,
-  lastUpdate: PropTypes.number,
-});
-
-ChainsDropDown.propTypes = forbidExtraProps({
-  chainNames: PropTypes.arrayOf(PropTypes.string).isRequired,
-  activeChainIndex: PropTypes.number.isRequired,
-  handleSelectChain: PropTypes.func.isRequired,
-});
-
-BlockchainDataGrid.propTypes = forbidExtraProps({
-  activeChain: blockchainType.isRequired,
-});
-
-NodeSelectionTabs.propTypes = forbidExtraProps({
-  nodes: PropTypes.arrayOf(nodeType).isRequired,
-  activeNodeIndex: PropTypes.number.isRequired,
-  activeChain: blockchainType.isRequired,
-  handleSelectNode: PropTypes.func.isRequired,
-});
-
-NodeDataGrid.propTypes = forbidExtraProps({
-  node: nodeType.isRequired,
-});
-
-NodeContent.propTypes = forbidExtraProps({
-  node: nodeType.isRequired,
-});
-
 MoreDetails.propTypes = forbidExtraProps({
-  nodes: PropTypes.arrayOf(nodeType).isRequired,
+  nodes: PropTypes.arrayOf(NODE_TYPE).isRequired,
   activeNodeIndex: PropTypes.number.isRequired,
-  activeChain: blockchainType.isRequired,
+  activeChain: BLOCKCHAIN_TYPE.isRequired,
   handleSelectNode: PropTypes.func.isRequired,
 });
 
 NodesOverviewTable.propTypes = forbidExtraProps({
-  nodes: PropTypes.arrayOf(nodeType).isRequired,
-  activeChain: blockchainType.isRequired,
+  nodes: PropTypes.arrayOf(NODE_TYPE).isRequired,
+  activeChain: BLOCKCHAIN_TYPE.isRequired,
 });
 
 NodesOverview.propTypes = forbidExtraProps({
-  nodes: PropTypes.arrayOf(nodeType).isRequired,
+  nodes: PropTypes.arrayOf(NODE_TYPE).isRequired,
   activeNodeIndex: PropTypes.number.isRequired,
-  activeChain: blockchainType.isRequired,
+  activeChain: BLOCKCHAIN_TYPE.isRequired,
   handleSelectNode: PropTypes.func.isRequired,
 });
 
 BlockchainStats.propTypes = forbidExtraProps({
-  activeChain: blockchainType.isRequired,
+  activeChain: BLOCKCHAIN_TYPE.isRequired,
 });
 
 MonitorsStatusTable.propTypes = forbidExtraProps({
-  monitors: PropTypes.arrayOf(monitorType).isRequired,
+  monitors: PropTypes.arrayOf(MONITOR_TYPE).isRequired,
 });
 
 MonitorsStatus.propTypes = forbidExtraProps({
-  monitors: PropTypes.arrayOf(monitorType).isRequired,
+  monitors: PropTypes.arrayOf(MONITOR_TYPE).isRequired,
 });
 
 export default Dashboard;

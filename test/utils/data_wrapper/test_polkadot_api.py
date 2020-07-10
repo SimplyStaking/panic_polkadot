@@ -2,7 +2,9 @@ import logging
 import unittest
 from typing import Dict
 from unittest.mock import patch
+from time import sleep
 
+from src.alerts.alerts import ApiIsDownAlert, ApiIsUpAgainAlert
 from src.channels.channel import ChannelSet
 from src.utils.data_wrapper.polkadot_api import PolkadotApiWrapper
 from test import TestInternalConf
@@ -38,6 +40,10 @@ class TestPolkadotApi(unittest.TestCase):
     def setUp(self) -> None:
         self.logger = logging.getLogger('dummy')
         self.wrapper = PolkadotApiWrapper(self.logger, self.api_endpoint)
+
+        self.max_time = 15
+        self.max_time_less = self.max_time - 10
+        self.max_time_more = self.max_time + 2
 
         self.counter_channel = CounterChannel(self.logger)
         self.channel_set = ChannelSet([self.counter_channel], TestInternalConf)
@@ -214,6 +220,16 @@ class TestPolkadotApi(unittest.TestCase):
             self.wrapper.get_eras_stakers(self.ws_url, self.acc_addr))
 
     @patch(GET_POLKADOT_JSON_FUNCTION)
+    def test_get_active_era(self, mock):
+        # Set up mock
+        endpoint = self.api_endpoint + '/api/query/staking/activeEra'
+        api_call = 'staking/activeEra'
+        mock.side_effect = api_mock_generator(endpoint, self.params, api_call)
+
+        self.assertTrue(
+            self.wrapper.get_active_era(self.ws_url))
+
+    @patch(GET_POLKADOT_JSON_FUNCTION)
     def test_get_events(self, mock):
         # Set up mock
         endpoint = self.api_endpoint + '/api/query/system/events'
@@ -258,36 +274,123 @@ class TestPolkadotApi(unittest.TestCase):
     def test_ping_node(self, mock):
         # Set up mock
         endpoint = self.api_endpoint + '/api/pingNode'
-        api_call = ''
+        api_call = 'pingNode'
         mock.side_effect = api_mock_generator(endpoint, self.params, api_call)
 
         self.assertTrue(self.wrapper.ping_node(self.ws_url))
 
-    def test_set_api_as_down_produces_alert_if_api_not_down(self):
-        # By default, API not down
+    def test_api_not_down_by_default(self) -> None:
+        self.assertFalse(self.wrapper.is_api_down)
 
-        # First time round, error alert is produced
+    def test_set_api_as_down_produces_warning_alert_if_api_not_down(
+            self) -> None:
+        # Test for validator monitors
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertEqual(1, self.counter_channel.warning_count)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              ApiIsDownAlert)
+
+        # Set API up again, and clear state
+        self.wrapper.set_api_as_up("", self.channel_set)
         self.counter_channel.reset()
-        self.wrapper.set_api_as_down("", self.channel_set)
-        self.assertEqual(1, self.counter_channel.error_count)
 
-        # Second time round, API is already down, so no alerts
+        # Test for non-validator monitors
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.assertEqual(1, self.counter_channel.warning_count)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              ApiIsDownAlert)
+
+    def test_set_api_as_down_produces_no_warning_alert_if_api_down(
+            self) -> None:
+        # Test for validator monitors
+        self.wrapper.set_api_as_down("", True, self.channel_set)
         self.counter_channel.reset()
-        self.wrapper.set_api_as_down("", self.channel_set)
-        self.assertTrue(self.counter_channel.no_alerts())
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertEqual(0, self.counter_channel.warning_count)
 
-    def test_set_api_as_up_produces_alert_if_api_is_down(self):
-        # By default, API not down
+        # Set API up again, and clear state
+        self.wrapper.set_api_as_up("", self.channel_set)
+        self.counter_channel.reset()
 
-        # First time round, no alert is produced
+        # Test for non-validator monitors
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.counter_channel.reset()
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.assertEqual(0, self.counter_channel.warning_count)
+
+    def test_set_api_as_down_sets_api_down(self) -> None:
+        # Test for validator monitors - API previously not down
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertTrue(self.wrapper.is_api_down)
+
+        # Test for validator monitors - API previously down
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertTrue(self.wrapper.is_api_down)
+
+        # Set API up and reset state
         self.counter_channel.reset()
         self.wrapper.set_api_as_up("", self.channel_set)
-        self.assertTrue(self.counter_channel.no_alerts())
 
-        # In between, we set the api as down
-        self.wrapper.set_api_as_down("", self.channel_set)
+        # Test for non-validator monitors - API previously not down
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.assertTrue(self.wrapper.is_api_down)
 
-        # API is now down, so info alert is produced
+        # Test for non-validator monitors - API previously down
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.assertTrue(self.wrapper.is_api_down)
+
+    def test_set_api_as_down_raises_critical_alert_for_val_monitors_if_conditions_are_met(
+            self) -> None:
+        # Declare API as down and start timer.
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.counter_channel.reset()
+
+        # Enough time passed - no critical alert sent yet
+        sleep(self.max_time_more)
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertEqual(1, self.counter_channel.critical_count)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              ApiIsDownAlert)
+
+        # Enough time passed - critical alert sent
+        self.counter_channel.reset()
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertEqual(0, self.counter_channel.critical_count)
+
+        # To reset state
+        self.wrapper.set_api_as_up("", self.channel_set)
+        self.counter_channel.reset()
+
+        # Not enough time passed - no critical alert sent yet
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertEqual(0, self.counter_channel.critical_count)
+        self.counter_channel.reset()
+
+        # Not enough time passed - critical alert sent
+        self.wrapper.set_api_as_down("", True, self.channel_set)
+        self.assertEqual(0, self.counter_channel.critical_count)
+
+    def test_set_api_as_down_raises_no_critical_alert_for_non_val_monitors(
+            self) -> None:
+
+        # Not enough time passed
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.assertEqual(0, self.counter_channel.critical_count)
+        self.counter_channel.reset()
+
+        # Enough time passed
+        sleep(self.max_time_more)
+        self.wrapper.set_api_as_down("", False, self.channel_set)
+        self.assertEqual(0, self.counter_channel.critical_count)
+
+    def test_set_api_as_up_produces_info_alert_if_api_is_down(self):
+        self.wrapper.set_api_as_down("", True, self.channel_set)
         self.counter_channel.reset()
         self.wrapper.set_api_as_up("", self.channel_set)
         self.assertEqual(1, self.counter_channel.info_count)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              ApiIsUpAgainAlert)
+
+    def test_set_api_as_up_produces_no_alert_if_api_is_up(self):
+        self.wrapper.set_api_as_up("", self.channel_set)
+        self.assertTrue(self.counter_channel.no_alerts())

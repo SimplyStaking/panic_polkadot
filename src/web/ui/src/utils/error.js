@@ -13,4 +13,14 @@ const INTERNAL_ALERTS_CONFIG_NOT_FOUND = {
   message: 'The internal alerts config is either missing or empty.',
 };
 
-export { RESOURCE_NOT_FOUND, DEFAULT_ERROR, INTERNAL_ALERTS_CONFIG_NOT_FOUND };
+const MONGO_NOT_SET_UP = {
+  code: 432,
+  message: 'Mongo not set up',
+};
+
+export {
+  RESOURCE_NOT_FOUND,
+  DEFAULT_ERROR,
+  INTERNAL_ALERTS_CONFIG_NOT_FOUND,
+  MONGO_NOT_SET_UP,
+};

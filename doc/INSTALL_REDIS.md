@@ -28,6 +28,20 @@ If you are willing to **run PANIC using docker**, it is very important to instal
     3. In the `SECURITY` section, add (or uncomment) the line `requirepass <PASS>`, where `<PASS>` is a complex password of your choosing. The alerter will ask for this password during setup.
     4. In the `SECURITY` section, you can also choose to disable some commands to prevent some actions from taking place. For each command, add a line: `rename-command <COMMAND> ""`.
         -  The following commands are *not* used by PANIC and can thus be disabled: `FLUSHALL`, `PEXPIRE`, `CONFIG`, `SHUTDOWN`, `BGREWRITEAOF`, `BGSAVE`, `SAVE`, `SPOP`, `SREM`, `RENAME` and `DEBUG`.
+        - You can disable them by copy pasting this code in the `SECURITY` section:
+        
+             ```c
+             rename-command DEBUG ""
+             rename-command RENAME ""
+             rename-command SREM ""
+             rename-command SPOP ""
+             rename-command SAVE ""
+             rename-command BGSAVE ""
+             rename-command BGREWRITEAOF ""
+             rename-command SHUTDOWN ""
+             rename-command PEXPIRE ""
+             rename-command FLUSHALL ""
+             ```
     5. On Linux, restart Redis to apply changes: `sudo service redis-server restart`
 
 3. To **run Redis**:

@@ -2,3 +2,5 @@
 ./logs
 ./src/web/ui/node_modules
 ./src/web/ui/build
+./src/web/ui/sessions
+./src/web/ui/certificates

@@ -1,10 +1,10 @@
 import sys
 
+from src.store.mongo.mongo_api import MongoApi
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.config_parsers.user_parsed import UserConf
 from src.utils.exceptions import InitialisationException
 from src.utils.logging import create_logger
-from src.store.mongo.mongo_api import MongoApi
 
 
 def run() -> None:

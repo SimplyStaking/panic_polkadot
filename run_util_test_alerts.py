@@ -1,10 +1,10 @@
 from src.alerts.alerts import Alert
 from src.alerts.alerts import AlertCode
+from src.store.mongo.mongo_api import MongoApi
 from src.utils.alert_utils.get_channel_set import get_full_channel_set
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.config_parsers.user_parsed import UserConf
 from src.utils.logging import DUMMY_LOGGER
-from src.store.mongo.mongo_api import MongoApi
 
 if __name__ == '__main__':
     mongo = MongoApi(logger=DUMMY_LOGGER, db_name=UserConf.mongo_db_name,

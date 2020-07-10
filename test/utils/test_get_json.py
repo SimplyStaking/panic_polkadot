@@ -60,7 +60,7 @@ class TestGetPolkadotJson(unittest.TestCase):
         self.assertEqual(RESULT, ret)
 
     @patch(GET_JSON_FUNCTION, return_value={
-        'error': 'Error: API call the_api_call failed.'})
+        'error': 'API call the_api_call failed.'})
     def test_get_polka_json_error_if_api_call_failed(self, _):
         try:
             get_polkadot_json(ENDPOINT, PARAMS, LOGGER, API_CALL)
@@ -78,7 +78,7 @@ class TestGetPolkadotJson(unittest.TestCase):
         except NodeWasNotConnectedToApiServerException:
             pass
 
-    @patch(GET_JSON_FUNCTION, return_value={'error': 'no reply from node'})
+    @patch(GET_JSON_FUNCTION, return_value={'error': 'Lost connection with node.'})
     def test_get_polka_json_error_if_no_reply_from_node(self, _):
         try:
             get_polkadot_json(ENDPOINT, PARAMS, LOGGER, API_CALL)

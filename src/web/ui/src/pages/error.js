@@ -4,8 +4,8 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { forbidExtraProps } from 'airbnb-prop-types';
 import PropTypes from 'prop-types';
-import '../style/style.css';
 import { DEFAULT_ERROR } from '../utils/error';
+import '../style/style.css';
 
 class ErrorPage extends Component {
   constructor(props) {

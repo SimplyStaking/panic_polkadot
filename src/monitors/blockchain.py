@@ -115,7 +115,9 @@ class BlockchainMonitor(Monitor):
         self.blockchain.set_validator_set_size(new_validator_set_size,
                                                self.channels, self.logger)
 
-        # Set API as up
+        # Set API as up and declare the used node as connected with the API
         self.data_wrapper.set_api_as_up(self.monitor_name, self.channels)
+        self.last_data_source_used.connect_with_api(
+            self.channels, self.logger)
 
         self.logger.info('%s status: %s', self._monitor_name, self.status())

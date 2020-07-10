@@ -228,6 +228,7 @@ class TestBlockchainMonitorWithoutRedis(unittest.TestCase):
             mock_public_prop.return_value = self.dummy_public_prop_count
             mock_council_prop.return_value = self.dummy_council_prop_count
             mock_ref_count.return_value = self.dummy_referendum_count
+            self.monitor.last_data_source_used = self.dummy_full_node_1
 
             self.monitor.monitor()
             self.assertEqual(self.dummy_blockchain.referendum_count,
@@ -248,9 +249,26 @@ class TestBlockchainMonitorWithoutRedis(unittest.TestCase):
         with mock.patch(DATA_SOURCE_PATH, new_callable=PropertyMock) \
                 as mock_data_source:
             mock_data_source.return_value = self.dummy_full_node_1
+            self.monitor.last_data_source_used = self.dummy_full_node_1
 
             self.monitor.monitor()
             self.assertFalse(self.monitor.data_wrapper.is_api_down)
+
+    @patch(GET_REFERENDUM_COUNT_FUNCTION, return_value=None)
+    @patch(GET_COUNCIL_PROPOSAL_COUNT_FUNCTION, return_value=None)
+    @patch(GET_PUBLIC_PROPOSAL_COUNT_FUNCTION, return_value=None)
+    @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
+    def test_monitor_connects_data_source_with_api_if_entire_data_obtained_successfully(
+            self, _1, _2, _3, _4) -> None:
+        with mock.patch(DATA_SOURCE_PATH, new_callable=PropertyMock) \
+                as mock_data_source:
+            mock_data_source.return_value = self.dummy_full_node_1
+            self.monitor.last_data_source_used = self.dummy_full_node_1
+            self.monitor.last_data_source_used.disconnect_from_api(
+                self.channel_set, self.logger)
+            self.assertFalse(self.monitor.last_data_source_used.is_connected_to_api_server)
+            self.monitor.monitor()
+            self.assertTrue(self.monitor.last_data_source_used.is_connected_to_api_server)
 
 
 class TestBlockchainMonitorWithRedis(unittest.TestCase):

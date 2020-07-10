@@ -18,18 +18,18 @@ def run() -> None:
     try:
         setup_user_config_main.setup_all(cp_main)
         with open('config/user_config_main.ini', 'w') as f:
-            cp_main.write(f)
+            cp_main.write(f, space_around_delimiters=False)
         print('Saved config/user_config_main.ini\n')
 
         setup_user_config_nodes.setup_nodes(
             cp_nodes, cp_main['api']['polkadot_api_endpoint'])
         with open('config/user_config_nodes.ini', 'w') as f:
-            cp_nodes.write(f)
+            cp_nodes.write(f, space_around_delimiters=False)
         print('Saved config/user_config_nodes.ini\n')
 
         setup_user_config_repos.setup_repos(cp_repos)
         with open('config/user_config_repos.ini', 'w') as f:
-            cp_repos.write(f)
+            cp_repos.write(f, space_around_delimiters=False)
         print('Saved config/user_config_repos.ini\n')
 
         print('Setup completed!')
