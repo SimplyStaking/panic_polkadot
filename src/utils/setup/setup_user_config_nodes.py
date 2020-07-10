@@ -41,7 +41,11 @@ def get_node(nodes_so_far: List[NodeConfig],
             except Exception:
                 if not yn_prompt('Failed to connect with node {}. Do you want '
                                  'to try again? (Y/n)\n'.format(ws_url)):
-                    return None
+                    if not yn_prompt(
+                            'Do you still want to add the node? (Y/n)\n'):
+                        return None
+                    else:
+                        break
         else:
             if not yn_prompt(
                     'Could not connect with the API Server at web socket '
@@ -49,7 +53,10 @@ def get_node(nodes_so_far: List[NodeConfig],
                     'API\'s config. Do you want to try again? (Y/n)\n'.format(
                         ws_url, polkadot_api_data_wrapper.api_endpoint,
                         polkadot_api_data_wrapper.api_endpoint)):
-                return None
+                if not yn_prompt('Do you still want to add the node? (Y/n)\n'):
+                    return None
+                else:
+                    break
 
     # Ask if node is a validator
     node_is_validator = yn_prompt('Is this node a validator? (Y/n)\n')

@@ -50,6 +50,7 @@ class NodeMonitor(Monitor):
         self.last_data_source_used = None
         self._last_height_checked = NONE
         self._session_index = NONE
+        self._era_index = NONE
         self._monitor_is_catching_up = False
         self._indirect_monitoring_disabled = len(data_sources) == 0
         self._no_live_archive_node_alert_sent = False
@@ -71,6 +72,10 @@ class NodeMonitor(Monitor):
     @property
     def session_index(self) -> int:
         return self._session_index
+
+    @property
+    def era_index(self) -> int:
+        return self._era_index
 
     @property
     def last_height_checked(self) -> int:
@@ -124,35 +129,42 @@ class NodeMonitor(Monitor):
         raise NoLiveArchiveNodeConnectedWithAnApiServerException()
 
     def load_state(self) -> None:
-        # If Redis is enabled, load the session index, and last height checked
-        # for slashing if any.
+        # If Redis is enabled, load the session index, era index, and last
+        # height checked for slashing if any.
         if self.redis_enabled:
             key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+            key_ei = Keys.get_node_monitor_era_index(self.monitor_name)
             key_lh = Keys.get_node_monitor_last_height_checked(
                 self.monitor_name)
             self._session_index = self.redis.get_int(key_si, NONE)
+            self._era_index = self.redis.get_int(key_ei, NONE)
             self._last_height_checked = self.redis.get_int(key_lh, NONE)
 
             self.logger.debug(
-                'Restored %s state: %s=%s, %s=%s', self._monitor_name,
-                key_si, self._session_index, key_lh, self._last_height_checked)
+                'Restored %s state: %s=%s, %s=%s, %s=%s', self._monitor_name,
+                key_si, self._session_index, key_lh, self._last_height_checked,
+                key_ei, self._era_index)
 
     def save_state(self) -> None:
-        # If Redis is enabled, save the current time, indicating that the node
-        # monitor was alive at this time, the current session index,
+        # If Redis is enabled, save the current time indicating that the node
+        # monitor was alive at this time, the current session index, era index,
         # and the last height checked.
         if self.redis_enabled:
             key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+            key_ei = Keys.get_node_monitor_era_index(self.monitor_name)
             key_lh = Keys.get_node_monitor_last_height_checked(
                 self.monitor_name)
             key_alive = Keys.get_node_monitor_alive(self.monitor_name)
 
             self.logger.debug(
-                'Saving node monitor state: %s=%s, %s=%s', self._monitor_name,
-                key_si, self._session_index, key_lh, self._last_height_checked)
+                'Saving node monitor state: %s=%s, %s=%s, %s=%s',
+                self._monitor_name, key_si, self._session_index, key_lh,
+                self._last_height_checked, key_ei, self._era_index)
 
-            # Set session index key
-            self.redis.set(key_si, self._session_index)
+            # Set session and era index keys
+            self.redis.set_multiple({
+                key_si: self._session_index, key_ei: self._era_index
+            })
 
             # Set last height checked key
             until = timedelta(seconds=self._redis_last_height_key_timeout)
@@ -167,8 +179,9 @@ class NodeMonitor(Monitor):
     def status(self) -> str:
         if self._node.is_validator:
             return self._node.status() + \
-                   ', session_index={}, last_height_checked={}' \
-                       .format(self._session_index, self._last_height_checked)
+                   ', session_index={}, era_index={}, last_height_checked={}' \
+                       .format(self._session_index, self._era_index,
+                               self._last_height_checked)
         else:
             return self._node.status()
 
@@ -204,8 +217,9 @@ class NodeMonitor(Monitor):
         self._node.update_finalized_block_height(finalized_block_height,
                                                  self.logger, self.channels)
 
-        # Set API as up
+        # Set API as up, and declare that the node was connected to the API
         self.data_wrapper.set_api_as_up(self.monitor_name, self.channels)
+        self.node.connect_with_api(self.channels, self.logger)
 
     def _check_for_slashing(self, height_to_check: int, archive_node: Node) \
             -> None:
@@ -227,8 +241,22 @@ class NodeMonitor(Monitor):
             self._session_index = new_session_index
         elif self._session_index < new_session_index:
             self._session_index = new_session_index
-            self._node.set_time_of_last_block(NONE, self.channels, self.logger)
+
+            # The number of blocks authored are recorded per session not era
             self._node.reset_no_of_blocks_authored(self.channels, self.logger)
+
+    def _check_for_new_era(self, new_era_index: int) -> None:
+
+        self._logger.debug('%s era_index: %s', self._node, new_era_index)
+
+        if self._era_index is NONE:
+            self._era_index = new_era_index
+        elif self._era_index < new_era_index:
+            self._era_index = new_era_index
+
+            # Reset timers on a new era to raise not authoring alerts per era,
+            # not session.
+            self._node.set_time_of_last_block(NONE, self.channels, self.logger)
             self._node.blocks_authored_alert_limiter.did_task()
             self._node.set_is_authoring(True, self.channels, self.logger)
             self._node.set_time_of_last_block_check_activity(
@@ -287,6 +315,9 @@ class NodeMonitor(Monitor):
                                 self.node.stash_account_address)
         disabled_validators = self.data_wrapper.get_disabled_validators(
             self.data_source_indirect.ws_url)
+        active_era = self.data_wrapper.get_active_era(
+            self.data_source_indirect.ws_url)
+        new_era_index = active_era['index']
 
         # Set active
         is_active = self._node.stash_account_address in session_validators
@@ -329,14 +360,16 @@ class NodeMonitor(Monitor):
         # Set session index
         self._check_for_new_session(new_session_index)
 
+        # Set era index
+        self._check_for_new_era(new_era_index)
+
         # Set number of blocks authored
         self._logger.debug('%s number_of_blocks_authored: %s',
                            self._node,
                            new_number_of_blocks_authored)
-        self._node.set_no_of_blocks_authored(self.channels,
-                                             self.logger,
+        self._node.set_no_of_blocks_authored(self.channels, self.logger,
                                              new_number_of_blocks_authored,
-                                             self._session_index)
+                                             self._era_index)
 
         if not self._archive_alerts_disabled:
             self._monitor_archive_state()
@@ -344,7 +377,10 @@ class NodeMonitor(Monitor):
     def _monitor_indirect_full_node(self) -> None:
         # These are not needed for full nodes, and thus must be given a
         # dummy value since NoneTypes cannot be saved in redis.
+
+        # Set session index and era index.
         self._session_index = NONE
+        self._era_index = NONE
 
         # Set bonded balance
         balance = 0
@@ -372,8 +408,10 @@ class NodeMonitor(Monitor):
         if self._node.is_validator:
             self._monitor_indirect_validator()
 
-            # Set API as up
+            # Set API as up and declare the used node as connected with the API
             self.data_wrapper.set_api_as_up(self.monitor_name, self.channels)
+            self.last_data_source_used.connect_with_api(
+                self.channels, self.logger)
         else:
             self._monitor_indirect_full_node()
 

@@ -97,10 +97,11 @@ If indirect monitoring is enabled, the node monitor does the following:
     3. Gets and stores the bonded balance.
     4. Checks and stores whether the validator is a council member.
     5. Checks whether a new session has been created.
-        1. If yes reset the number of authored blocks by validator to zero.
-        2. Reset the timer which keeps the time since the last block authored by the validator in current session.
-    6. Gets and stores the number of blocks authored by the validator in the current session.
-    7. If enabled, performs archive monitoring.
+        1. If yes reset the number of authored blocks in a session by the validator to zero.
+    6. Checks whether a new era has been created.
+        1. Reset the timer which keeps the time since the last block authored by the validator in current era.
+    7. Gets and stores the number of blocks authored by the validator in the current session.
+    8. If enabled, performs archive monitoring.
 2. Declares the API Server as running.
 
 As already discussed, archive monitoring is part of indirect monitoring. If enabled, during archive monitoring the node monitor does the following: 
@@ -176,7 +177,7 @@ The periodic alive reminder is a way for PANIC to inform the operator that it is
 
 The following are some important points about the periodic alive reminder:
 
-1. The time after which a reminder is sent can be specified by the operator using the setup process described [here](SETUP.md).
+1. The time after which a reminder is sent can be specified by the operator using the setup process described [here](./SETUP_ALERTER.md).
 2. The periodic alive reminder can be muted and unmuted using Telegram as discussed below.
 
 ## User Interfaces
@@ -213,12 +214,12 @@ Included in the alerter state stored in Redis are:
     - Number of peers
     - Bonded balance
     - The `auth_index` value
-    - Is-active status. 
+    - Is-active status 
     - Is-council member status
     - Is-elected status
     - Is-disabled status
     - Is-syncing status
-    - Number of blocks authored
+    - Number of blocks authored in current session
     - Timestamp of the last block authored
     - The `is_authoring` value
     - Timestamp of the last block check activity
@@ -229,6 +230,7 @@ Included in the alerter state stored in Redis are:
 - **For each node monitor:**
     - Timestamp of the last update (to know that the monitor is still running)
     - The current session index
+    - The current era index
     - The last height checked in archive monitoring
 - **For each blockchain:**
     - Public propositions count
@@ -272,21 +274,25 @@ Each alert stored in a MongoDB database has the following fields:
 
 Notes:
 
-- The Web UI assumes that the alerts are sorted recent-first, so the user is not encouraged to modify/add alerts in the MongoDB database himself.
+- The Web UI assumes that the alerts are sorted recent-first, so the user is not encouraged to modify/add alerts in the MongoDB database.
 
 ## Complete List of Alerts
 
 A complete list of alerts will now be presented. These are grouped into sections so that they can be understood more easily. For each alert, the severity and whether it is configurable from the config files is also included.
 
-Note that for more advanced users, the alerts internal config file (`config/internal_config_alerts.ini`) also lists all possible alerts and allows users to disable specific alerts as discussed [here](./SETUP.md#advanced-configuration).
+Note that for more advanced users, the alerts internal config file (`config/internal_config_alerts.ini`) also lists all possible alerts and allows users to disable specific alerts as discussed [here](./SETUP_ALERTER.md#advanced-configuration).
 
 ### Access to Nodes
 
-Problems when trying to access nodes start with an info alert stating that there are some delays. If the node is inaccessible two times in a row, a warning (critical if validator) alert is raised. An info alert is raised as soon as the node is accessible again. The alerter declares a node to be inaccessible if it lost connection with the API Server. This was done because data cannot be retrieved in this case.
+Problems when trying to access nodes start with an info alert stating that there are some delays. If the node is inaccessible two times in a row, a warning (critical if validator) alert is raised. An info alert is raised as soon as the node is accessible again. The alerter declares a node to be inaccessible if the node loses connection with the API Server. This was done because data cannot be retrieved in this case.
+
+What happens if the node is inaccessible during startup? PANIC raises a warning/critical alert if the node is a full/validator node respectively, informing the user that the full node/validator monitor could not be initialized (and hence did not start) because the node is inaccessible.
 
 Another important alert is that if the node monitor (only for validators during indirect monitoring) or the blockchain monitor cannot access any data source node connected to the API Server, they raise a critical alert.
 
 In addition to this, if the node monitor is supplied with archive data source nodes and at any monitoring round it cannot access any archive data source node connected with the API Server during archive monitoring, a warning alert is sent by the alerter informing the user that archive monitoring will be disabled until an archive data source node is accessible. When an archive data source node is then accessible, the user is informed with an info alert that archive monitoring is enabled again.
+
+The last two alerts can be explained via the following scenario. Imagine PANIC is monitoring some node `N` and the operator restarts the API server without node `N` for some reason. In the case that `N` is a validator, PANIC informs the user via a critical alert that the validator was not added to the API server. In case that `N` is not a validator, a warning alert is raised. Whenever this issue is resolved, the user is informed via an INFO alert.
 
 Notes: 
 - When archive monitoring is disabled, indirect and direct monitoring is still enabled.
@@ -298,9 +304,12 @@ Notes:
 | `CannotAccessNodeAlert` | `WARNING`/`CRITICAL` | ✗ |
 | `StillCannotAccessNodeAlert` | `WARNING`/`CRITICAL` | ✗ |
 | `NowAccessibleAlert` | `INFO` | ✗ |
+| `NodeInaccessibleDuringStartup` | `WARNING`/`CRITICAL` | ✗ | 
 | `CouldNotFindLiveNodeConnectedToApiServerAlert` | `CRITICAL` | ✗ |
-| `CouldNotFindLiveArchiveNodeConnectedToApiServerAlert` | `WARNING` | ✓ |
-| `FoundLiveArchiveNodeAgainAlert` | `INFO` | ✓ |
+| `CouldNotFindLiveArchiveNodeConnectedToApiServerAlert` | `WARNING` | ✗ |
+| `FoundLiveArchiveNodeAgainAlert` | `INFO` | ✗ |
+| `NodeWasNotConnectedToApiServerAlert` | `WARNING`/`CRITICAL` | ✗ |
+| `NodeConnectedToApiServerAgainAlert` | `INFO` | ✗ |
 
 ### Bonded Balance (Validator Nodes Only)
 
@@ -321,6 +330,7 @@ Default values:
 ### Number of Peers
 
 Alerts for changes in the number of peers range from info to critical.
+
 #### For Validator Nodes
 - Any decrease to `N` peers inside a configurable danger boundary `D1` is a critical alert (i.e. `N <= D1`). 
 - Any decrease to `N` peers inside a configurable safe boundary `S1` is a warning alert (i.e. `D1 < N <= S1`).
@@ -354,7 +364,7 @@ A node is syncing if it was offline for a while and needs to synchronise with th
 
 ### Session (Validator Nodes Only)
 
-Session alerts are meant to help the operator monitor the behaviour of a validator during a validating session. These types of alerts are further divided into four sections.
+Session alerts are meant to help the operator monitor the behaviour of a validator during a validating session. These types of alerts are further divided into sections below.
 
 #### Is Active 
 
@@ -374,23 +384,6 @@ A validator is elected if it is currently chosen to be in the validator set for 
 | `ValidatorIsElectedForTheNextSessionAlert` | `INFO` | ✗ |
 | `ValidatorIsNotElectedForNextSessionAlert` | `WARNING` | ✗ |
 
-#### Blocks Authoring
-
-One of the most important tasks for validators is to author blocks. To make it easier for the operator to monitor this behaviour, PANIC was developed to periodically raise a warning alert if no blocks have yet been authored after `T` seconds since the start of a session. In extension to this, PANIC raises a warning alert if `T` seconds pass since the last block authored in the same session by the validator. To be as helpful as possible to the user, whenever such warning alerts are raised, PANIC raises an info alert to the operator when the validator authors a new block in the same session.
-
-Note:
-
-- In each session, the timer is reset. Therefore these alerts are should be considered per session not cross-session.
-
-Default values:
-- `T = max_time_alert_between_blocks_authored = 1800`
-
- | Class | Severity | Configurable |
-|---|---|---|
-| `LastAuthoredBlockInSessionAlert` | `WARNING` | ✓ |
-| `NoBlocksHaveYetBeenAuthoredInSessionAlert` | `WARNING` | ✓ |
-| `ANewBlockHasNowBeenAuthoredByValidatorAlert` | `INFO` | ✗ |
-
 #### Disabled
 
 When a validator is disabled, it can no longer participate in a validating session. Since this is very bad scenario in nature, PANIC raises a critical alert if this happens. To be as helpful as possible, PANIC raises an info alert when the validator is no longer disabled.
@@ -399,6 +392,27 @@ When a validator is disabled, it can no longer participate in a validating sessi
 |---|---|---|
 | `ValidatorHasBeenDisabledInSessionAlert` | `CRITICAL` | ✗ |
 | `ValidatorIsNoLongerDisabledInSessionAlert` | `INFO` | ✗ |
+
+### Era Alerts
+
+Era alerts are meant to help the operator monitor the behaviour of a validator over an era.
+
+#### Blocks Authoring
+
+One of the most important tasks for validators is to author blocks. To make it easier for the operator to monitor this behaviour, PANIC was developed to periodically raise warning alerts if no blocks have yet been authored after `T` seconds since the start of an era. In addition to this, PANIC raises a warning alert if `T` seconds pass since the last block authored in the same era by the validator. To be as helpful as possible to the user, PANIC raises an INFO alert when the validator starts authoring blocks again in the same era.
+
+Note:
+
+- In each era the timer is reset. Therefore these alerts are should be considered per era not cross-era.
+
+Default values:
+- `T = max_time_alert_between_blocks_authored = 10800`
+
+ | Class | Severity | Configurable |
+|---|---|---|
+| `LastAuthoredBlockInEraAlert` | `WARNING` | ✓ |
+| `NoBlocksHaveYetBeenAuthoredInEraAlert` | `WARNING` | ✓ |
+| `ANewBlockHasNowBeenAuthoredByValidatorAlert` | `INFO` | ✗ |
 
 ### Blockchain
 
@@ -474,7 +488,7 @@ Default values:
 
  | Class | Severity | Configurable |
 |---|---|---|
-| `NodeFinalizedBlockHeightDidNotChangeInAlert` | `WARNING/CRITICAL` | ✗ |
+| `NodeFinalizedBlockHeightDidNotChangeInAlert` | `WARNING/CRITICAL` | ✓ |
 | `NodeFinalizedBlockHeightHasNowBeenUpdatedAlert` | `INFO` | ✗ |
 
 ### Twilio
@@ -490,16 +504,19 @@ The alerter also has some Twilio-specific alerts. Any issue with calling, which 
 
 The only two alerts raised by the GitHub alerter are an info alert when a new release is available, and an error alert when there are issues with accessing a repository's releases page.
 
+If a repository's releases page is inaccessible during startup, a warning alert is raised by PANIC, informing the operator that the GitHub monitor could not be initialized (and hence did not start) because the repository's releases page is inaccessible.  
+
 | Class | Severity | Configurable |
 |---|---|---|
 | `NewGitHubReleaseAlert` | `INFO` | ✗ |
 | `CannotAccessGitHubPageAlert` | `ERROR` | ✗ |
+| `RepoInaccessibleDuringStartup` | `WARNING` | ✗ |
 
 ### Periodic Alive Reminder
 
 If the periodic alive reminder is enabled from the config file, and PANIC is running smoothly, the operator is informed every time period that PANIC is still running via an info alert.
 
-The periodic alive reminder always uses the console and logger to raise this alert, however, the operator can also receive this alert via Telegram, Email or both, by modifying the config file as described [here](SETUP.md).
+The periodic alive reminder always uses the console and logger to raise this alert, however, the operator can also receive this alert via Telegram, Email or both, by modifying the config file as described [here](./SETUP_ALERTER.md).
 
 | Class | Severity | Configurable |
 |---|---|---|
@@ -507,12 +524,12 @@ The periodic alive reminder always uses the console and logger to raise this ale
 
 ### API Server
 
-Since PANIC accesses the nodes via the API Server, a node may not be accessible due to the fact that the API Server has lost connection with PANIC. More often than not, this happens when for some reason the API Server has stopped executing. Whenever this happens, an error alert is raised to inform the user that PANIC cannot retrieve data because the API Server is no longer accessible. In the background, PANIC keeps on trying to connect with the API Server. Whenever connection is re-established, the user is informed via an info alert.
+Since PANIC accesses the nodes via the API Server, a node may not be accessible due to the fact that PANIC has lost connection with the API server. More often than not, this happens when for some reason the API Server has stopped executing. Whenever this happens, warning alerts are raised for each monitor that cannot retrieve data. In addition to this, if 15 seconds pass since the API server was initially down, the validator node monitors send critical alerts to inform the operator that the validators cannot be monitored. In the background, PANIC keeps on trying to connect with the API Server and whenever the connection is re-established, the user is informed via an info alert.
 
 | Class | Severity | Configurable |
 |---|---|---|
-| `ApiIsDownAlert` | `ERROR` | ✓ |
-| `ApiIsUpAgainAlert` | `INFO` | ✓ |
+| `ApiIsDownAlert` | `WARNING`/`CRITICAL` | ✗ |
+| `ApiIsUpAgainAlert` | `INFO` | ✗ |
 
 ### Other (Errors)
 

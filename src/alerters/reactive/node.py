@@ -34,6 +34,7 @@ class Node:
         self._redis = redis
         self._redis_enabled = redis is not None
         self._redis_hash = Keys.get_hash_blockchain(self.chain)
+        self._connected_to_api_server = True
 
         self._went_down_at = None
         self._bonded_balance = None
@@ -162,6 +163,10 @@ class Node:
     @property
     def finalized_block_height(self) -> int:
         return self._finalized_block_height
+
+    @property
+    def is_connected_to_api_server(self) -> bool:
+        return self._connected_to_api_server
 
     def set_time_of_last_block(self, time_of_last_block: float,
                                channels: ChannelSet, logger: logging.Logger) \
@@ -542,7 +547,7 @@ class Node:
     def set_no_of_blocks_authored(self, channels: ChannelSet,
                                   logger: logging.Logger,
                                   new_no_of_blocks_authored: int,
-                                  session_index: int):
+                                  era_index: int):
         # NOTE: This function assumes that the node is a validator.
 
         logger.debug('%s set_no_of_blocks_authored: no_of_blocks_'
@@ -569,12 +574,12 @@ class Node:
                             self._time_of_last_block),
                         "{hours}h, {minutes}m, {seconds}s")
                     channels.alert_warning(
-                        LastAuthoredBlockInSessionAlert(
-                            self.name, time_interval, session_index))
+                        LastAuthoredBlockInEraAlert(
+                            self.name, time_interval, era_index))
                 else:
                     channels.alert_warning(
-                        NoBlocksHaveYetBeenAuthoredInSessionAlert(
-                            self.name, session_index))
+                        NoBlocksHaveYetBeenAuthoredInEraAlert(
+                            self.name, era_index))
                 self._is_authoring = False
                 self.blocks_authored_alert_limiter.did_task()
                 self._time_of_last_block_check_activity = \
@@ -670,3 +675,24 @@ class Node:
         if amount > 0:
             channels.alert_critical(
                 ValidatorHasBeenSlashedAlert(self.name, amount))
+
+    def disconnect_from_api(self, channels: ChannelSet, logger: logging.Logger):
+        logger.debug('%s disconnect_from_api: channels=%s', self, channels)
+
+        if self.is_connected_to_api_server:
+            if self.is_validator:
+                channels.alert_critical(
+                    NodeWasNotConnectedToApiServerAlert(self.name))
+            else:
+                channels.alert_warning(
+                    NodeWasNotConnectedToApiServerAlert(self.name))
+
+        self._connected_to_api_server = False
+
+    def connect_with_api(self, channels: ChannelSet, logger: logging.Logger):
+        logger.debug('%s connect_with_api: channels=%s', self, channels)
+
+        if not self.is_connected_to_api_server:
+            channels.alert_info(NodeConnectedToApiServerAgainAlert(self.name))
+
+        self._connected_to_api_server = True

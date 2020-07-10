@@ -1,9 +1,11 @@
 import logging
+from datetime import timedelta
 from typing import Optional
 
 from src.alerts.alerts import ApiIsDownAlert, ApiIsUpAgainAlert
 from src.channels.channel import ChannelSet
 from src.utils.get_json import get_polkadot_json
+from src.utils.timing import TimedTaskLimiter
 from src.utils.types import PolkadotWrapperType
 
 
@@ -13,6 +15,11 @@ class PolkadotApiWrapper:
         self._logger = logger
         self._api_endpoint = api_endpoint
         self._api_down = False
+        self._critical_alert_sent = False
+
+        # If 15 seconds pass since a validator monitor lost connection with the
+        # API server, the user is informed via critical alert once
+        self._api_down_limiter = TimedTaskLimiter(timedelta(seconds=int(15)))
 
     @property
     def api_endpoint(self) -> str:
@@ -134,6 +141,12 @@ class PolkadotApiWrapper:
         params = {'websocket': ws_url, 'account_id': stash_account_address}
         return get_polkadot_json(endpoint, params, self._logger, api_call)
 
+    def get_active_era(self, ws_url: str) -> PolkadotWrapperType:
+        api_call = 'staking/activeEra'
+        endpoint = self._api_endpoint + '/api/query/' + api_call
+        params = {'websocket': ws_url}
+        return get_polkadot_json(endpoint, params, self._logger, api_call)
+
     def get_events(self, ws_url: str, block_hash: Optional[str]) \
             -> PolkadotWrapperType:
         api_call = 'system/events'
@@ -160,17 +173,29 @@ class PolkadotApiWrapper:
         return get_polkadot_json(endpoint, params, self._logger)
 
     def ping_node(self, ws_url: str) -> PolkadotWrapperType:
-        endpoint = self._api_endpoint + '/api/pingNode'
+        api_call = 'pingNode'
+        endpoint = self._api_endpoint + '/api/' + api_call
         params = {'websocket': ws_url}
-        return get_polkadot_json(endpoint, params, self._logger)
+        return get_polkadot_json(endpoint, params, self._logger, api_call)
 
-    def set_api_as_down(self, monitor: str, channels: ChannelSet) -> None:
+    def set_api_as_down(self, monitor: str, is_validator_monitor,
+                        channels: ChannelSet) -> None:
 
         self._logger.debug('%s set_api_as_down: api_down(currently)=%s, '
                            'channels=%s', self, self._api_down, channels)
 
+        # If API is suddenly down, inform via a warning alert
         if not self._api_down:
-            channels.alert_error(ApiIsDownAlert(monitor))
+            channels.alert_warning(ApiIsDownAlert(monitor))
+            self._api_down_limiter.did_task()
+
+        # If 15 seconds pass since a validator monitor lost connection with the
+        # API server, the user is informed via critical alert once
+        if is_validator_monitor and self._api_down_limiter.can_do_task() \
+                and not self._critical_alert_sent:
+            channels.alert_critical(ApiIsDownAlert(monitor))
+            self._critical_alert_sent = True
+
         self._api_down = True
 
     def set_api_as_up(self, monitor: str, channels: ChannelSet) -> None:
@@ -180,4 +205,6 @@ class PolkadotApiWrapper:
 
         if self._api_down:
             channels.alert_info(ApiIsUpAgainAlert(monitor))
+
+        self._critical_alert_sent = False
         self._api_down = False

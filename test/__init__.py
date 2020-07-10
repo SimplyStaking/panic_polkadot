@@ -18,4 +18,5 @@ TestInternalConfSomeAlertsDisabled = InternalConfig(
 TestUserConf = UserConfig(
     'test/test_user_config_main.ini',
     'test/test_user_config_nodes.ini',
-    'test/test_user_config_repos.ini')
+    'test/test_user_config_repos.ini',
+    'test/test_user_config_ui.ini')

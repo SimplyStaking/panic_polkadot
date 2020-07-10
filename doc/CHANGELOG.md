@@ -4,6 +4,39 @@
 
 <!--New features/improvements/fixes go here-->
 
+## 2.1.0
+
+Released on 10th July 2020
+
+### Improvements
+* (UI)
+    * (Authentication) Session based authentication is now used to secure access to the UI. The user must define a username and password by running the `run_ui_setup.py` script.
+    * (Dashboard) The data cards now have a fixed height and are placed on the dashboard using `react-bootstrap`'s grid system. This avoids having messy data cards, and adds more structure to the layout of the dashboard.
+    * (HTTPS) The UI back-end server is now an HTTPS server. The user must put his own SSL certificate signed by a certificate authority in the `panic_polkadot/src/web/ui/certificates` folder for maximum security. For convenience, a dummy certificate and key are provided. Note, the UI server does not start without these files.
+* (alerter)
+    * Whenever a validator node monitor loses connection with the API server for 15 seconds, a critical alert is sent to the operator, informing them that the monitor cannot retrieve validator data for monitoring.
+    * The alerter now calculates `blocks authored` alerts over an era, not session. By default, the alerter will now raise a `no blocks authored so far` or `last block authored block was 3 hrs ago` if 3 hours passed and no blocks have been authored in the current era or since the last block authored in the current era respectively. Note, the user can set the `max_time_alert_between_blocks_authored` in the `internal_config_main.ini` config to any value less than the era duration.
+* (setup) The CLI setup no longer forces nodes and repos to be accessible for them to be added to the configs.
+
+### Bug Fixes
+
+* (UI Dashboard) The columns of the `Monitors Status` table were fixed to a minimum of `200px` in width. This allows for better visualisation on mobile devices.
+* (UI Settings Pages) The `Save Config` button in the `Nodes` and `Settings` pages no longer disappears when the respective configs are empty.
+* (alerter)
+    * A monitor no longer fails if a function from the Polkadot API Server fails.
+    * A node that is removed from the API server is no longer declared as down. Now, the user is specifically informed about this scenario via a critical/warning alert if the node is a validator/full-node respectively. The user is then informed via an info alert whenever the operator adds the node back to the API server.
+    * PANIC no longer crashes if one of the nodes/repos is inaccessible during start-up. In this version, the monitor belonging to the inaccessible node/repo only does not start.
+* (UI twilio) Fixed Twilio error not being reported when making a test call with an incorrectly formatted AccountSID or Auth Token.
+
+### Other
+
+* (Security Vulnerability) Updated `package-lock.json` to resolve the `Denial of Service` vulnerability issue in `react-scripts`.
+* Better file/folder layout and decomposition of components.
+* The `run_setup.py` file was renamed to `run_alerter_setup.py`, as a new setup script named `run_ui_setup.py` was added for the UI.
+* A new config file was added for the UI named `user_config_ui.ini`, and can be located in the `panic_polkadot/config` folder.
+* The `run_util_validate_configs.py` now also validates the `user_config_ui.ini` config.
+* Added util `run_util_change_ui_auth_pass.py` to change the UI authentication password.
+
 ## 2.0.1
 
 Released on 15th May 2020

@@ -85,25 +85,23 @@ def node_from_node_config(node_config: NodeConfig):
     return node
 
 
-def test_connection_to_github_pages():
-    for repo in UserConf.filtered_repos:
-        # Get releases page
-        releases_page = InternalConf.github_releases_template.format(
-            repo.repo_page)
+def test_connection_to_github_page(repo: RepoConfig):
+    # Get releases page
+    releases_page = InternalConf.github_releases_template.format(
+        repo.repo_page)
 
-        # Test connection
-        log_and_print('Trying to connect to {}'.format(releases_page))
-        try:
-            releases = get_json(releases_page, logger_general)
-            if 'message' in releases and releases['message'] == 'Not Found':
-                raise InitialisationException(
-                    'Successfully reached {} but URL is '
-                    'not valid.'.format(releases_page))
-            else:
-                log_and_print('Success.')
-        except Exception:
-            raise InitialisationException('Could not reach {}.'
-                                          ''.format(releases_page))
+    # Test connection
+    log_and_print('Trying to connect to {}'.format(releases_page))
+    try:
+        releases = get_json(releases_page, logger_general)
+        if 'message' in releases and releases['message'] == 'Not Found':
+            raise InitialisationException('Successfully reached {} but URL '
+                                          'is not valid.'.format(releases_page))
+        else:
+            log_and_print('Success.')
+    except Exception:
+        raise InitialisationException('Could not reach {}.'
+                                      ''.format(releases_page))
 
 
 def run_monitor_nodes(node: Node):
@@ -357,12 +355,26 @@ if __name__ == '__main__':
     log_and_print('Alert types enabled = {}'.format(enabled))
     log_and_print('Alert types disabled = {}'.format(disabled))
 
-    # Nodes initialisation
-    try:
-        nodes = [node_from_node_config(n) for n in UserConf.filtered_nodes]
-    except InitialisationException as ie:
-        logger_general.error(ie)
-        sys.exit(ie)
+    # Nodes initialisation. List the nodes which are not accessible in a
+    # separate list
+    nodes = []
+    nodes_inaccessible = []
+    for n in UserConf.filtered_nodes:
+        try:
+            nodes.append(node_from_node_config(n))
+        except InitialisationException as ie:
+            log_and_print(str(ie))
+            nodes_inaccessible.append(n)
+            if n.node_is_validator:
+                full_channel_set.alert_critical(
+                    NodeInaccessibleDuringStartup(n.node_name))
+            else:
+                full_channel_set.alert_warning(
+                    NodeInaccessibleDuringStartup(n.node_name))
+
+    # Remove the configs of inaccessible nodes
+    for ni in nodes_inaccessible:
+        UserConf.filtered_nodes.remove(ni)
 
     # Organize nodes into lists according to their category
     node_monitor_nodes = []
@@ -418,11 +430,19 @@ if __name__ == '__main__':
         archive_alerts_disabled_by_chain[chain] = archive_alerts_disabled
 
     # Test connection to GitHub pages
-    try:
-        test_connection_to_github_pages()
-    except InitialisationException as ie:
-        logger_general.error(ie)
-        sys.exit(ie)
+    repos_inaccessible = []
+    for r in UserConf.filtered_repos:
+        try:
+            test_connection_to_github_page(r)
+        except InitialisationException as ie:
+            log_and_print(str(ie))
+            repos_inaccessible.append(r)
+            full_channel_set.alert_warning(
+                RepoInaccessibleDuringStartup(r.repo_name))
+
+    # Remove inaccessible repos
+    for ri in repos_inaccessible:
+        UserConf.filtered_repos.remove(ri)
 
     # Run monitors
     monitor_node_count = len(node_monitor_nodes)

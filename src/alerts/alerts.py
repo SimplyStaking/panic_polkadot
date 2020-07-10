@@ -25,6 +25,9 @@ class AlertCode(Enum):
     CouldNotFindLiveNodeConnectedToApiServerAlert = _next_id(),
     CouldNotFindLiveArchiveNodeConnectedToApiServerAlert = _next_id(),
     FoundLiveArchiveNodeAgainAlert = _next_id(),
+    NodeWasNotConnectedToApiServerAlert = _next_id(),
+    NodeConnectedToApiServerAgainAlert = _next_id(),
+    NodeInaccessibleDuringStartup = _next_id(),
     BondedBalanceIncreasedAlert = _next_id(),
     BondedBalanceDecreasedAlert = _next_id(),
     BondedBalanceIncreasedByAlert = _next_id(),
@@ -39,12 +42,12 @@ class AlertCode(Enum):
     ValidatorIsNowActiveAlert = _next_id(),
     ValidatorIsNotElectedForNextSessionAlert = _next_id(),
     ValidatorIsElectedForTheNextSessionAlert = _next_id(),
-    LastAuthoredBlockInSessionAlert = _next_id(),
-    NoBlocksHaveYetBeenAuthoredInSessionAlert = _next_id(),
-    ANewBlockHasNowBeenAuthoredByValidatorAlert = _next_id(),
     ValidatorHasBeenDisabledInSessionAlert = _next_id(),
     ValidatorIsNoLongerDisabledInSessionAlert = _next_id(),
     ValidatorHasBeenSlashedAlert = _next_id(),
+    LastAuthoredBlockInEraAlert = _next_id(),
+    NoBlocksHaveYetBeenAuthoredInEraAlert = _next_id(),
+    ANewBlockHasNowBeenAuthoredByValidatorAlert = _next_id(),
     NewReferendumAlert = _next_id(),
     NewPublicProposalAlert = _next_id(),
     NewCouncilProposalAlert = _next_id(),
@@ -58,6 +61,7 @@ class AlertCode(Enum):
     ProblemWhenCheckingIfCallsAreSnoozedAlert = _next_id(),
     NewGitHubReleaseAlert = _next_id(),
     CannotAccessGitHubPageAlert = _next_id(),
+    RepoInaccessibleDuringStartup = _next_id(),
     AlerterAliveAlert = _next_id(),
     ApiIsUpAgainAlert = _next_id(),
     ApiIsDownAlert = _next_id(),
@@ -153,6 +157,35 @@ class FoundLiveArchiveNodeAgainAlert(Alert):
             AlertCode.FoundLiveArchiveNodeAgainAlert,
             '{} found an archive node. This means that archive monitoring '
             '(which includes slashing) is now enabled.'.format(monitor))
+
+
+class NodeWasNotConnectedToApiServerAlert(Alert):
+
+    def __init__(self, node_name: str) -> None:
+        super().__init__(
+            AlertCode.NodeWasNotConnectedToApiServerAlert,
+            'Node {} was not connected with the API server. Please add the '
+            'node to the API server nodes config and restart the API server.'
+            ''.format(node_name))
+
+
+class NodeConnectedToApiServerAgainAlert(Alert):
+
+    def __init__(self, node_name: str) -> None:
+        super().__init__(
+            AlertCode.NodeConnectedToApiServerAgainAlert,
+            'Node {} was connected with the API server again.'
+            ''.format(node_name))
+
+
+class NodeInaccessibleDuringStartup(Alert):
+
+    def __init__(self, node: str) -> None:
+        super().__init__(
+            AlertCode.NodeInaccessibleDuringStartup,
+            'Node {} was not accessible during PANIC startup. {} will NOT be '
+            'monitored until it is accessible and PANIC restarted afterwards. '
+            'Some features of PANIC might be affected.'.format(node, node))
 
 
 class BondedBalanceIncreasedAlert(Alert):
@@ -285,33 +318,6 @@ class ValidatorIsElectedForTheNextSessionAlert(Alert):
             ''.format(node, node))
 
 
-class LastAuthoredBlockInSessionAlert(Alert):
-
-    def __init__(self, node: str, time_of_last_authored_block: str,
-                 session: int) -> None:
-        super().__init__(
-            AlertCode.LastAuthoredBlockInSessionAlert,
-            'The last authored block in session {} by validator {} was at '
-            'least {} ago.'.format(session, node, time_of_last_authored_block))
-
-
-class NoBlocksHaveYetBeenAuthoredInSessionAlert(Alert):
-
-    def __init__(self, node: str, session: int) -> None:
-        super().__init__(
-            AlertCode.NoBlocksHaveYetBeenAuthoredInSessionAlert,
-            'No blocks have yet been authored by node {} in session {}.'
-                .format(node, session))
-
-
-class ANewBlockHasNowBeenAuthoredByValidatorAlert(Alert):
-
-    def __init__(self, node: str) -> None:
-        super().__init__(
-            AlertCode.ANewBlockHasNowBeenAuthoredByValidatorAlert,
-            'Validator {} is now authoring blocks again.'.format(node))
-
-
 class ValidatorHasBeenDisabledInSessionAlert(Alert):
 
     def __init__(self, node: str, session: int) -> None:
@@ -336,6 +342,33 @@ class ValidatorHasBeenSlashedAlert(Alert):
         super().__init__(
             AlertCode.ValidatorHasBeenSlashedAlert,
             '{} has been slashed {}.'.format(node, amount))
+
+
+class LastAuthoredBlockInEraAlert(Alert):
+
+    def __init__(self, node: str, time_since_last_authored_block: str,
+                 era: int) -> None:
+        super().__init__(
+            AlertCode.LastAuthoredBlockInEraAlert,
+            'The last authored block in era {} by validator {} was at '
+            'least {} ago.'.format(era, node, time_since_last_authored_block))
+
+
+class NoBlocksHaveYetBeenAuthoredInEraAlert(Alert):
+
+    def __init__(self, node: str, era: int) -> None:
+        super().__init__(
+            AlertCode.NoBlocksHaveYetBeenAuthoredInEraAlert,
+            'No blocks have yet been authored by node {} in era {}.'
+                .format(node, era))
+
+
+class ANewBlockHasNowBeenAuthoredByValidatorAlert(Alert):
+
+    def __init__(self, node: str) -> None:
+        super().__init__(
+            AlertCode.ANewBlockHasNowBeenAuthoredByValidatorAlert,
+            'Validator {} is now authoring blocks again.'.format(node))
 
 
 class NewReferendumAlert(Alert):
@@ -443,6 +476,16 @@ class CannotAccessGitHubPageAlert(Alert):
         super().__init__(
             AlertCode.CannotAccessGitHubPageAlert,
             'I cannot access GitHub page {}.'.format(page))
+
+
+class RepoInaccessibleDuringStartup(Alert):
+
+    def __init__(self, repo: str) -> None:
+        super().__init__(
+            AlertCode.RepoInaccessibleDuringStartup,
+            'Repo {} was not accessible during PANIC startup. {} will NOT be '
+            'monitored until it is accessible and PANIC restarted afterwards. '
+            ''.format(repo, repo))
 
 
 class AlerterAliveAlert(Alert):

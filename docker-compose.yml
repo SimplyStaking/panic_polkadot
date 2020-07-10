@@ -5,9 +5,11 @@ services:
     build:
       context: './'
       dockerfile: './src/web/ui/Dockerfile'
-    image: 'simplyvc/panic_polkadot_ui:1.0.1'
+    image: 'simplyvc/panic_polkadot_ui:2.0.0'
     volumes:
       - './config:/opt/panic_polkadot/config'
+      - './src/web/ui/sessions:/opt/panic_polkadot/src/web/ui/sessions'
+      - './src/web/ui/certificates:/opt/panic_polkadot/src/web/ui/certificates'
     ports:
       - '${UI_HOST_PORT}:9000'
     restart: always
@@ -26,7 +28,7 @@ services:
 
   alerter:
     build: .
-    image: 'simplyvc/panic_polkadot:2.0.1'
+    image: 'simplyvc/panic_polkadot:2.1.0'
     volumes:
       - './config:/opt/panic_polkadot/config'
       - './logs:/opt/panic_polkadot/logs'

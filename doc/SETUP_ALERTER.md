@@ -1,6 +1,6 @@
-# Setting up PANIC
+# Setting up the Alerter
 
-PANIC requires its own setup process, involving three main parts, each of which generates its own respective config file:
+The alerter requires its own setup process, involving three main parts, each of which generates its own respective config file:
 
 - Linking up any of the optional features that you set up (`config/user_config_main.ini`)
 - Providing a list of nodes that you wish to monitor (`config/user_config_nodes.ini`)
@@ -12,7 +12,7 @@ To generate the config files, the operator has three options.
 
 ### Using the Web UI
 
-This method is the one that we highly recommend. The user can use the Web UI to set-up PANIC as follows:
+This method is the one that we highly recommend. The user can use the Web UI to set-up the alerter as follows:
 
 - Go to the Settings &rarr; Main page to generate the `user_config_main.ini` file in the `panic_polkadot/config` folder.
 - Go to the Settings &rarr; Nodes page to generate the `user_config_nodes.ini` file in the `panic_polkadot/config` folder.
@@ -20,7 +20,7 @@ This method is the one that we highly recommend. The user can use the Web UI to 
 
 It is of utmost importance that you follow the sequence provided above for expected execution/behaviour. The setup pages will let you know if they are able to tell that your information is not as expected!
 
-**IMPORTANT NOTE:** PANIC is not able to detect changes in the config files. Therefore, do not forget to restart PANIC after updating the config files. If you are using docker and the alerter container has already been created, you must restart the alerter container using the following command, otherwise, the changes would not be detected:
+**IMPORTANT NOTE:** The alerter is not able to detect changes in the config files mentioned above. Therefore, do not forget to restart the alerter after updating the config files. If you are using docker and the alerter container has already been created, you must restart the alerter container using the following command, otherwise, the changes would not be detected:
 
 ```bash
 docker-compose restart alerter
@@ -33,8 +33,8 @@ In addition to this, if nodes are added/removed from the `config/user_config_nod
 If you do not wish to use the Web UI, you can use the programmatic setup process which is started up by running the following in the project directory:
 
 ```bash
-pipenv sync
-pipenv run python run_setup.py
+pipenv sync                             # use sudo in linux if necessary
+pipenv run python run_alerter_setup.py  # use sudo in linux if necessary
 # If multiple versions of Python are installed, the python executable may be `python3.6`, `python3.7`, etc.
 ```
 
@@ -42,7 +42,7 @@ The programmatic setup process is guided by instructions which we highly recomme
 
 Lastly, note that if you wish to change some configurations and run the setup process again, it will detect the config files and will not simply overwrite the current configurations.
 
-**IMPORTANT NOTE:** PANIC is not able to detect changes in the config files. Therefore, do not forget to restart PANIC after updating the config files. If you are using docker and the alerter container has already been created, you must restart the alerter container using the following command, otherwise, the changes would not be detected:
+**IMPORTANT NOTE:** The alerter is not able to detect changes in the config files. Therefore, do not forget to restart the alerter after updating the config files. If you are using docker and the alerter container has already been created, you must restart the alerter container using the following command, otherwise, the changes would not be detected:
 
 ```bash
 docker-compose restart alerter
@@ -54,7 +54,7 @@ In addition to this, if nodes are added/removed from the `config/user_config_nod
 
 Alternatively, you can take a look at the three `config/example_***.ini` files and perform the config file generation manually by copying the three example config files to the ones listed above and replacing the example pieces of information with actual ones.
 
-**IMPORTANT NOTE:** PANIC is not able to detect changes in the config files. Therefore, do not forget to restart PANIC after updating the config files. If you are using docker and the alerter container has already been created, you must restart the alerter container using the following command, otherwise, the changes would not be detected:
+**IMPORTANT NOTE:** The alerter is not able to detect changes in the config files. Therefore, do not forget to restart the alerter after updating the config files. If you are using docker and the alerter container has already been created, you must restart the alerter container using the following command, otherwise, the changes would not be detected:
 
 ```bash
 docker-compose restart alerter

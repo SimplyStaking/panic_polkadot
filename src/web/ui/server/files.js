@@ -27,4 +27,20 @@ module.exports = {
       }
     });
   },
+
+  readCertificateFile: (filePath) => {
+    let file;
+    try {
+      file = fs.readFileSync(filePath);
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        console.error(`${filePath} must be missing. Please include it and `
+        + 'restart the server');
+        throw err;
+      } else {
+        throw err;
+      }
+    }
+    return file;
+  },
 };

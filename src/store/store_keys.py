@@ -28,6 +28,7 @@ _key_node_auth_index = "n17"
 _key_node_monitor_alive = "nm1"
 _key_node_monitor_session_index = "nm2"
 _key_node_monitor_last_height_checked = "nm3"
+_key_node_monitor_era_index = "nm4"
 
 # bcX_<chain_name>
 _key_blockchain_get_referendum_count = "bc1"
@@ -138,6 +139,10 @@ class Keys:
     @staticmethod
     def get_node_monitor_session_index(monitor_name: str) -> str:
         return _as_prefix(_key_node_monitor_session_index) + monitor_name
+
+    @staticmethod
+    def get_node_monitor_era_index(monitor_name: str) -> str:
+        return _as_prefix(_key_node_monitor_era_index) + monitor_name
 
     @staticmethod
     def get_node_monitor_last_height_checked(monitor_name: str) -> str:

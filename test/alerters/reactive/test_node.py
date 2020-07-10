@@ -80,6 +80,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.dummy_no_of_blocks_authored = 10
         self.dummy_finalized_block_height = 34535
         self.dummy_session_index = 200
+        self.dummy_era_index = 50
         self.dummy_auth_index = 10
         self.dummy_slash_amount = 45.4
 
@@ -147,6 +148,10 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
     def test_finalized_block_height_zero_by_default(self) -> None:
         self.assertEqual(self.validator.finalized_block_height, 0)
+
+    def test_is_connected_to_api_server_true_by_default(self) -> None:
+        self.assertTrue(self.validator.is_connected_to_api_server)
+        self.assertTrue(self.full_node.is_connected_to_api_server)
 
     def test_status_returns_as_expected(self) -> None:
         self.validator._bonded_balance = self.dummy_bonded_balance
@@ -1006,7 +1011,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(False, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertTrue(self.counter_channel.no_alerts())
 
@@ -1023,7 +1028,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored, 0)
         self.assertEqual(old_last_time_did_task,
@@ -1042,12 +1047,12 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         new_number_of_blocks_authored = self.dummy_no_of_blocks_authored - 1
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_number_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertTrue(self.counter_channel.no_alerts())
 
@@ -1056,7 +1061,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         new_number_of_blocks_authored = self.dummy_no_of_blocks_authored - 1
 
@@ -1069,7 +1074,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_number_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored,
                          self.dummy_no_of_blocks_authored)
@@ -1088,13 +1093,13 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.blocks_authored_alert_limiter.did_task()
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
         self.validator.set_no_of_blocks_authored(self.channel_set, self.logger,
-                                                 0, self.dummy_session_index)
+                                                 0, self.dummy_era_index)
         self.counter_channel.reset()
 
         new_number_of_blocks_authored = self.dummy_no_of_blocks_authored
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_number_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.counter_channel.info_count, 1)
         self.assertIsInstance(self.counter_channel.latest_alert,
@@ -1105,17 +1110,17 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         self.counter_channel.reset()
 
         new_number_of_blocks_authored = self.dummy_no_of_blocks_authored + 1
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_number_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.counter_channel.info_count, 1)
         self.assertIsInstance(self.counter_channel.latest_alert,
@@ -1126,12 +1131,12 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         new_number_of_blocks_authored = self.dummy_no_of_blocks_authored + 1
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_number_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertTrue(self.counter_channel.no_alerts())
 
@@ -1143,7 +1148,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         new_number_of_blocks_authored = self.dummy_no_of_blocks_authored
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_number_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertTrue(self.counter_channel.no_alerts())
 
@@ -1158,7 +1163,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored,
                          self.dummy_no_of_blocks_authored)
@@ -1175,20 +1180,20 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
 
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         self.counter_channel.reset()
 
         self.assertFalse(self.validator._is_authoring)
         new_no_of_blocks_authored = self.dummy_no_of_blocks_authored + 1
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         self.assertTrue(self.validator._is_authoring)
 
     def test_set_no_of_blocks_authored_sets_is_authoring_on_new_block_if_no_blocks_alert_sent(
@@ -1199,14 +1204,14 @@ class TestNodeWithoutRedis(unittest.TestCase):
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
 
         self.validator.set_no_of_blocks_authored(self.channel_set, self.logger,
-                                                 0, self.dummy_session_index)
+                                                 0, self.dummy_era_index)
         self.counter_channel.reset()
 
         self.assertFalse(self.validator._is_authoring)
         new_no_of_blocks_authored = self.dummy_no_of_blocks_authored + 1
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, new_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         self.assertTrue(self.validator._is_authoring)
 
     def test_set_no_of_blocks_authored_raises_no_alerts_if_no_change_and_time_not_passed(
@@ -1214,10 +1219,10 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertTrue(self.counter_channel.no_alerts())
 
@@ -1226,7 +1231,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         old_time_of_last_block = self.validator._time_of_last_block
         old_last_time_did_task = self.validator.blocks_authored_alert_limiter. \
             last_time_that_did_task
@@ -1235,7 +1240,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
 
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored,
                          self.dummy_no_of_blocks_authored)
@@ -1254,34 +1259,34 @@ class TestNodeWithoutRedis(unittest.TestCase):
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
 
         self.validator.set_no_of_blocks_authored(self.channel_set, self.logger,
-                                                 0, self.dummy_session_index)
+                                                 0, self.dummy_era_index)
 
         self.assertEqual(self.counter_channel.warning_count, 1)
         self.assertIsInstance(self.counter_channel.latest_alert,
-                              NoBlocksHaveYetBeenAuthoredInSessionAlert)
+                              NoBlocksHaveYetBeenAuthoredInEraAlert)
 
     def test_set_no_of_blocks_authored_raises_warning_alert_if_blocks_authored_and_time_passed(
             self) -> None:
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
 
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.counter_channel.warning_count, 1)
         self.assertIsInstance(self.counter_channel.latest_alert,
-                              LastAuthoredBlockInSessionAlert)
+                              LastAuthoredBlockInEraAlert)
 
     def test_set_no_of_blocks_authored_resets_state_if_blocks_authored_and_time_passed(
             self) -> None:
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         sleep(self.max_time_alert_between_blocks_authored_with_error.seconds)
 
         old_time_of_last_block = self.validator._time_of_last_block
@@ -1291,7 +1296,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
             self.validator._time_of_last_block_check_activity
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored,
                          self.dummy_no_of_blocks_authored)
@@ -1316,7 +1321,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         old_time_of_last_block_check_activity = \
             self.validator._time_of_last_block_check_activity
         self.validator.set_no_of_blocks_authored(self.channel_set, self.logger,
-                                                 0, self.dummy_session_index)
+                                                 0, self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored, 0)
         self.assertNotEqual(old_last_time_did_task,
@@ -1333,7 +1338,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.set_active(True, self.channel_set, self.logger)
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertTrue(self.counter_channel.no_alerts())
 
@@ -1348,7 +1353,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
             self.validator._time_of_last_block_check_activity
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
 
         self.assertEqual(self.validator.no_of_blocks_authored,
                          self.dummy_no_of_blocks_authored)
@@ -1364,7 +1369,7 @@ class TestNodeWithoutRedis(unittest.TestCase):
     def test_reset_no_of_blocks_authored_resets_no_of_blocks_to_0(self) -> None:
         self.validator.set_no_of_blocks_authored(
             self.channel_set, self.logger, self.dummy_no_of_blocks_authored,
-            self.dummy_session_index)
+            self.dummy_era_index)
         self.validator.reset_no_of_blocks_authored(self.channel_set,
                                                    self.logger)
 
@@ -1881,6 +1886,134 @@ class TestNodeWithoutRedis(unittest.TestCase):
         self.validator.slash(0, self.channel_set, self.logger)
 
         self.assertTrue(self.counter_channel.no_alerts())
+
+    def test_disconnect_from_api_raises_critical_alert_for_validators_if_connected_to_api(
+            self) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertEqual(self.counter_channel.critical_count, 1)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              NodeWasNotConnectedToApiServerAlert)
+
+    def test_disconnect_from_api_raises_warning_alert_for_full_nodes_if_connected_to_api(
+            self) -> None:
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertEqual(self.counter_channel.warning_count, 1)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              NodeWasNotConnectedToApiServerAlert)
+
+    def test_disconnect_from_api_raises_no_alerts_for_validators_if_not_connected_to_api(
+            self) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.counter_channel.no_alerts())
+
+    def test_disconnect_from_api_raises_no_alerts_for_full_nodes_if_not_connected_to_api(
+            self) -> None:
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.counter_channel.no_alerts())
+
+    def test_disconnect_from_api_sets_is_connected_false_for_validators_if_connected_to_api(
+            self) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertFalse(self.validator.is_connected_to_api_server)
+
+    def test_disconnect_from_api_sets_is_connected_false_for_full_nodes_if_connected_to_api(
+            self) -> None:
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertFalse(self.full_node.is_connected_to_api_server)
+
+    def test_disconnect_from_api_sets_is_connected_false_for_validators_if_not_connected_to_api(
+            self) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertFalse(self.validator.is_connected_to_api_server)
+
+    def test_disconnect_from_api_sets_is_connected_false_for_full_nodes_if_not_connected_to_api(
+            self) -> None:
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+
+        self.assertFalse(self.full_node.is_connected_to_api_server)
+
+    def test_connect_with_api_raises_info_alert_for_validators_if_not_connected_to_api(
+            self) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.validator.connect_with_api(self.channel_set, self.logger)
+
+        self.assertEqual(self.counter_channel.info_count, 1)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              NodeConnectedToApiServerAgainAlert)
+
+    def test_connect_with_api_raises_info_alert_for_full_nodes_if_not_connected_to_api(
+            self) -> None:
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.full_node.connect_with_api(self.channel_set, self.logger)
+
+        self.assertEqual(self.counter_channel.info_count, 1)
+        self.assertIsInstance(self.counter_channel.latest_alert,
+                              NodeConnectedToApiServerAgainAlert)
+
+    def test_connect_with_api_raises_no_alerts_for_validators_if_connected_to_api(
+            self) -> None:
+        self.validator.connect_with_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.validator.connect_with_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.counter_channel.no_alerts())
+
+    def test_connect_with_api_raises_no_alerts_for_full_nodes_if_connected_to_api(
+            self) -> None:
+        self.full_node.connect_with_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.full_node.connect_with_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.counter_channel.no_alerts())
+
+    def test_connect_with_api_sets_is_connected_true_for_validators_if_connected_to_api(
+            self) -> None:
+        self.validator.connect_with_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.validator.connect_with_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.validator.is_connected_to_api_server)
+
+    def test_connect_with_api_sets_is_connected_true_for_full_nodes_if_connected_to_api(
+            self) -> None:
+        self.full_node.connect_with_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.full_node.connect_with_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.validator.is_connected_to_api_server)
+
+    def test_connect_with_api_sets_is_connected_true_for_validators_if_not_connected_to_api(
+            self) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.validator.connect_with_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.validator.is_connected_to_api_server)
+
+    def test_connect_with_api_sets_is_connected_true_for_full_nodes_if_not_connected_to_api(
+            self) -> None:
+        self.full_node.disconnect_from_api(self.channel_set, self.logger)
+        self.counter_channel.reset()
+        self.full_node.connect_with_api(self.channel_set, self.logger)
+
+        self.assertTrue(self.validator.is_connected_to_api_server)
 
 
 class TestNodeWithRedis(unittest.TestCase):

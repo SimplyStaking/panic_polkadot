@@ -1,6 +1,6 @@
 {
   "name": "panic-polkadot-ui",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "UI in React for PANIC for Polkadot",
   "repository": {
     "type": "git",
@@ -19,6 +19,7 @@
     "configparser": "^0.3.6",
     "eslint": "^6.8.0",
     "express": "^4.17.1",
+    "express-session": "^1.17.1",
     "font-awesome": "^4.7.0",
     "md5": "^2.2.1",
     "moment": "^2.24.0",
@@ -33,6 +34,7 @@
     "react-scripts": "^3.4.1",
     "react-toasts": "^3.0.6",
     "redis": "^3.0.2",
+    "session-file-store": "^1.4.0",
     "twilio": "^3.42.0"
   },
   "devDependencies": {

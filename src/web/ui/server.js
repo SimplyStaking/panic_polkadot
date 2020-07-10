@@ -1,10 +1,14 @@
 /* eslint-disable no-console */
+const https = require('https');
+const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const mongoClient = require('mongodb').MongoClient;
+const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const utils = require('./server/utils');
 const cfg = require('./server/configs');
 const redis = require('./server/redis');
@@ -12,6 +16,18 @@ const mongo = require('./server/mongo');
 const msg = require('./server/msgs');
 const files = require('./server/files');
 const filters = require('./server/filters');
+const error = require('./server/error');
+
+const httpsKey = files.readCertificateFile(
+  path.join(__dirname, 'certificates', 'key.pem'),
+);
+const httpsCert = files.readCertificateFile(
+  path.join(__dirname, 'certificates', 'cert.pem'),
+);
+const httpsOptions = {
+  key: httpsKey,
+  cert: httpsCert,
+};
 
 const app = express();
 app.disable('x-powered-by');
@@ -27,6 +43,10 @@ let chainNodesMap = {};
 let repoNameList = [];
 let mongoInfo;
 let redisInfo;
+let authUsername;
+let hashedPassword;
+let salt;
+let cookieSecret;
 
 function resetInfoFromUserConfigMain() {
   alerterID = undefined;
@@ -64,30 +84,30 @@ function loadInfoFromUserConfigMain() {
         configName, alerterID);
     }
 
-    // Get polkadot api endpoint
+    // Get Polkadot API endpoint
     if (config.api && config.api.polkadot_api_endpoint) {
       polkadotApiEndpoint = config.api.polkadot_api_endpoint;
-      console.debug('Set polkadot API endpoint to %s', polkadotApiEndpoint);
+      console.debug('Set Polkadot API endpoint to %s', polkadotApiEndpoint);
     } else {
       console.error('Missing api.polkadot_api_endpoint from %s. Using %s',
         configName, polkadotApiEndpoint);
     }
 
-    // Get whole mongo info section
+    // Get whole Mongo info section
     if (config.mongo) {
       mongoInfo = config.mongo;
-      console.debug('Set mongo info to %s', JSON.stringify(mongoInfo));
+      console.debug('Set Mongo info to %s', JSON.stringify(mongoInfo));
     } else {
-      console.error('Missing mongo info from %s. Using %s',
+      console.error('Missing Mongo info from %s. Using %s',
         configName, mongoInfo);
     }
 
-    // Get whole redis info section
+    // Get whole Redis info section
     if (config.redis) {
       redisInfo = config.redis;
-      console.debug('Set redis info to %s', JSON.stringify(redisInfo));
+      console.debug('Set Redis info to %s', JSON.stringify(redisInfo));
     } else {
-      console.error('Missing redis info from %s. Using %s',
+      console.error('Missing Redis info from %s. Using %s',
         configName, redisInfo);
     }
   } catch (err) {
@@ -167,20 +187,168 @@ function loadInfoFromInternalMainConfig() {
     // Get redis database
     if (config.redis && config.redis.redis_database) {
       redisDB = config.redis.redis_database;
-      console.debug('Set redis DB to %s', redisDB);
+      console.debug('Set Redis DB to %s', redisDB);
     } else {
       console.error('Missing redis.redis_database from %s. Using %s',
         configName, redisDB);
     }
   } catch (err) {
     if (err.code === 'ENOENT') {
-      console.error('Config %s not found. Using redis DB "%s".',
+      console.error('Config %s not found. Using Redis DB "%s".',
         configName, redisDB);
     } else {
       throw err;
     }
   }
 }
+
+function loadInfoFromUserUIConfig() {
+  const configName = cfg.USER_CONFIG_UI;
+  try {
+    const config = cfg.readConfig(configName);
+
+    // - If the considered auth detail is in the config, read and store it.
+    // - If not in the config file, check if it has already been stored.
+    // - Otherwise, UI authentication has not been set up, so shut UI down.
+
+
+    if (config.authentication && config.authentication.username) {
+      authUsername = config.authentication.username;
+      console.debug('Set authentication username to %s.', authUsername);
+    } else if (authUsername) {
+      console.error('Missing authentication.username from %s. Using %s.',
+        configName, authUsername);
+    } else {
+      console.error('Missing authentication.username from %s. Please run the '
+          + 'panic_polkadot/run_ui_setup.py script to setup authentication for '
+          + 'the UI before proceeding further.', configName);
+      throw new Error(error.INVALID_UI_CONFIG.message);
+    }
+
+    if (config.authentication && config.authentication.hashed_password) {
+      hashedPassword = config.authentication.hashed_password.slice(64, 128);
+      salt = config.authentication.hashed_password.slice(0, 64);
+      console.debug('Set authentication password corresponding to hash %s.',
+        hashedPassword);
+      console.debug('Set salt to %s.', salt);
+    } else if (hashedPassword) {
+      console.error('Missing authentication.hashed_password from %s. Using the '
+        + 'password corresponding to hash %s, and salt %s.',
+      configName, hashedPassword, salt);
+    } else {
+      console.error('Missing authentication.hashed_password from %s. Please '
+        + 'run the panic_polkadot/run_ui_setup.py script to setup '
+        + 'authentication for the UI before proceeding further.',
+      configName);
+      throw new Error(error.INVALID_UI_CONFIG.message);
+    }
+
+    if (config.authentication && config.authentication.cookie_secret) {
+      cookieSecret = config.authentication.cookie_secret;
+      console.debug('Set cookie secret to %s. Note, the server needs to be '
+        + 'restarted if the cookie secret has been modified, as the session '
+        + 'would need to be re-initialized. Ignore warning if this is not the '
+        + 'case.', cookieSecret);
+    } else if (cookieSecret) {
+      console.error('Missing authentication.cookie_secret from %s. Using %s.',
+        configName, cookieSecret);
+    } else {
+      console.error('Missing authentication.cookie_secret from %s. Please '
+        + 'run the panic_polkadot/run_ui_setup.py script to setup '
+        + 'authentication for the UI before proceeding further.',
+      configName);
+      throw new Error(error.INVALID_UI_CONFIG.message);
+    }
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      if (cookieSecret && hashedPassword && authUsername && salt) {
+        console.error('Config %s not found. Using authUsername=%s,'
+          + 'hashedPassword=%s, cookieSecret=%s, salt=%s.', configName,
+        authUsername, hashedPassword, cookieSecret, salt);
+      } else {
+        console.error('Config  %s not found. Please run the '
+          + 'panic_polkadot/run_ui_setup.py script to setup '
+          + 'authentication for the UI before proceeding further.', configName);
+        throw new Error(error.INVALID_UI_CONFIG.message);
+      }
+    } else {
+      throw err;
+    }
+  }
+}
+
+function authDetailsValid(username, password) {
+  return authUsername === username && hashedPassword === password;
+}
+
+function checkAndFixAuthenticated(req) {
+  req.session.authenticated = authDetailsValid(
+    req.session.username, req.session.password,
+  );
+}
+
+// Get data from config to initialize a session
+loadInfoFromUserUIConfig();
+
+// Initialize session
+app.use(session({
+  name: 'session-cookie',
+  secret: cookieSecret,
+  saveUninitialized: false,
+  resave: false,
+  store: new FileStore({ path: `${__dirname}/sessions` }),
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: true,
+    maxAge: 60 * 60 * 1000 * 24,
+  },
+}));
+
+// ---------------------------------------- Authentication
+
+app.post('/server/authenticate', async (req, res) => {
+  console.log('Received POST request for %s', req.url);
+  const { username, password } = req.body;
+
+  if (!(username && password)) {
+    res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
+    return;
+  }
+
+  req.session.username = username;
+  const inputHashedPass = crypto.pbkdf2Sync(Buffer.from(password),
+    Buffer.from(salt, 'hex'), 100000, 32, 'sha256').toString('hex');
+  req.session.password = inputHashedPass;
+
+  if (authDetailsValid(username, inputHashedPass)) {
+    req.session.authenticated = true;
+    res.status(utils.SUCCESS_STATUS)
+      .send(utils.resultJson({ authenticated: true }));
+  } else {
+    req.session.authenticated = false;
+    res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_INVALID_AUTH));
+  }
+});
+
+app.get('/server/get_authentication_status', (req, res) => {
+  console.log('Received GET request for %s', req.url);
+  checkAndFixAuthenticated(req);
+  res.status(utils.SUCCESS_STATUS)
+    .send(utils.resultJson({ authenticated: req.session.authenticated }));
+});
+
+app.post('/server/terminate_session', (req, res) => {
+  console.log('Received POST request for %s', req.url);
+  req.session.destroy();
+  res.status(utils.SUCCESS_STATUS).clearCookie('session-cookie', {
+    httpOnly: true,
+    secure: true,
+    sameSite: true,
+  }).end();
+});
 
 // ---------------------------------------- Config get
 
@@ -386,7 +554,7 @@ app.get('/server/all_chain_info', async (req, res) => {
 
   // ----------------------------- Blockchain
 
-  // Create redis keys for blockchain
+  // Create Redis keys for blockchain
   let keysBc = redis.getKeysBlockchain();
   if (monitoredChains.indexOf(chainName) >= 0) {
     keysBc = redis.addPostfixToDictValues(keysBc, `_${chainName}`);
@@ -406,7 +574,7 @@ app.get('/server/all_chain_info', async (req, res) => {
   allInfo.blockchain = keysBc;
 
   if (monitoredChains.indexOf(chainName) >= 0) {
-    // Create redis keys for blockchain monitor
+    // Create Redis keys for blockchain monitor
     let keysBcMonitor = redis.getKeysBlockchainMonitor();
     keysBcMonitor = redis.addPrefixToDictValues(keysBcMonitor,
       getRedisKeyPrefix()); // Add prefix
@@ -427,7 +595,7 @@ app.get('/server/all_chain_info', async (req, res) => {
 
   Object.keys(nodesList)
     .forEach((n) => {
-      // Create redis keys for node
+      // Create Redis keys for node
       let keysNode = redis.getKeysNode();
       keysNode = redis.addPostfixToDictValues(keysNode, `_${n}`);
 
@@ -437,7 +605,7 @@ app.get('/server/all_chain_info', async (req, res) => {
           valuesToGetFromHash.push(keysNode[k]);
         });
 
-      // Create redis keys for node monitor
+      // Create Redis keys for node monitor
       let keysNodeMonitor = redis.getKeysNodeMonitor();
       keysNodeMonitor = redis.addPrefixToDictValues(keysNodeMonitor,
         getRedisKeyPrefix()); // Add prefix
@@ -461,9 +629,12 @@ app.get('/server/all_chain_info', async (req, res) => {
   const hash = `${getRedisKeyPrefix()}${bcHash}_${chainName}`;
   const valuesDict = {};
 
+  // Create Redis client
   const redisClient = redis.getRedisClient(
     redisInfo.host, redisInfo.port, redisInfo.password,
   );
+
+  // Perform Redis operations
   redisClient.select(redisDB, (err, _) => {
     if (err != null) {
       redisClient.quit();
@@ -475,6 +646,8 @@ app.get('/server/all_chain_info', async (req, res) => {
       return;
     }
 
+    // Execute a Redis mget and hmget to get all values. Using multi()
+    // means that all actions are only performed once exec() is called.
     redisClient
       .multi()
       .mget(valuesToGetNormally, (err1, values) => {
@@ -552,6 +725,8 @@ app.get('/server/all_chain_info', async (req, res) => {
 
 app.get('/server/repos', async (req, res) => {
   console.log('Received GET request for %s', req.url);
+
+  // Return list of repo names obtained from the configs
   const repos = Array.from(repoNameList);
   return res.status(utils.SUCCESS_STATUS)
     .send(utils.resultJson(repos));
@@ -562,6 +737,7 @@ app.get('/server/repos', async (req, res) => {
 app.post('/server/ping_server', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   try {
+    // Just return a success message
     return res.status(utils.SUCCESS_STATUS)
       .send(utils.resultJson(msg.MSG_PONG));
   } catch (err) {
@@ -574,22 +750,28 @@ app.post('/server/ping_redis', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   const { host, port, password } = req.body;
 
+  // Error if missing arguments
   if (!(host && port)) {
     res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
     return;
   }
 
+  // Create Redis client
   const redisClient = redis.getRedisClient(host, port, password);
+
+  // Ping Redis using ping function
   redisClient.ping((err, result) => {
     redisClient.quit();
 
+    // Result must be 'pong'
     if (err == null && result.toLowerCase() === 'pong') {
       res.status(utils.SUCCESS_STATUS)
         .send(utils.resultJson(msg.MSG_PONG));
       return;
     }
 
+    // Unexpected result: non-'pong' but without an error
     if (err == null) {
       console.log('Unexpected Redis ping result: %s', result);
       res.status(utils.ERR_STATUS)
@@ -597,6 +779,7 @@ app.post('/server/ping_redis', async (req, res) => {
       return;
     }
 
+    // Error occurred. Special message sent if authentication failed
     console.error(err);
     const errMsg = err.code === 'NOAUTH'
       ? msg.MSG_REDIS_AUTH_INCORRECT : msg.MSG_REDIS_ERROR;
@@ -611,15 +794,19 @@ app.post('/server/ping_mongo', async (req, res) => {
     host, port, user, pass,
   } = req.body;
 
+  // Error if missing arguments
   if (!(host && port)) {
     res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
     return;
   }
 
+  // Come up with url, with optional authentication part
   const authPass = pass ? `:${pass}` : '';
   const authFull = user ? `${user}${authPass}@` : '';
   const url = `mongodb://${authFull}${host}:${port}`;
+
+  // Ping Mongo by trying to connect to it
   await mongoClient.connect(url, mongo.options, (err, _) => {
     if (err == null) {
       res.status(utils.SUCCESS_STATUS)
@@ -636,12 +823,14 @@ app.post('/server/polkadot_api_server/ping_api', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   const { endpoint } = req.body;
 
+  // Error if missing arguments
   if (!endpoint) {
     res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
     return;
   }
 
+  // Ping Polkadot API server using axios get
   const url = `${endpoint}/api/pingApi`;
   axios.get(url)
     .then((_) => {
@@ -665,6 +854,7 @@ app.post('/server/polkadot_api_server/ping_node', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   const { websocket } = req.body;
 
+  // Error if missing arguments or Polkadot API server not configured
   if (!websocket) {
     res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
@@ -676,6 +866,7 @@ app.post('/server/polkadot_api_server/ping_node', async (req, res) => {
     return;
   }
 
+  // Ping node using axios get
   const url = `${polkadotApiEndpoint}/api/pingNode`;
   axios.get(url, { params: { websocket } })
     .then((_) => {
@@ -702,13 +893,24 @@ app.post('/server/test_twilio', async (req, res) => {
     twilioPhoneNumber, phoneNumberToDial,
   } = req.body;
 
+  // Error if missing arguments
   if (!(accountSid && authToken && twilioPhoneNumber && phoneNumberToDial)) {
     res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
     return;
   }
 
-  const twilioClient = twilio(accountSid, authToken);
+  // Create Twilio client
+  let twilioClient;
+  try {
+    twilioClient = twilio(accountSid, authToken);
+  } catch (err) {
+    console.error(err);
+    res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_TWILIO_ERROR));
+  }
+
+  // Make test call
   twilioClient.calls
     .create({
       twiml: '<Response><Reject /></Response>',
@@ -730,12 +932,14 @@ app.post('/server/test_email', async (req, res) => {
     smtp, from, to, user, pass,
   } = req.body;
 
+  // Error if missing arguments
   if (!(smtp && from && to)) {
     res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
     return;
   }
 
+  // Create mail transport (essentially an email client)
   const transport = nodemailer.createTransport({
     host: smtp,
     auth: (user && pass) ? {
@@ -744,6 +948,7 @@ app.post('/server/test_email', async (req, res) => {
     } : undefined,
   });
 
+  // If transporter valid, create and send test email
   transport.verify((err, _) => {
     if (err) {
       console.log(err);
@@ -759,6 +964,7 @@ app.post('/server/test_email', async (req, res) => {
       text: 'Test Email from PANIC',
     };
 
+    // Send test email
     transport.sendMail(message, (err2, info) => {
       if (err2) {
         console.log(err2);
@@ -809,12 +1015,17 @@ files.listenFileChanges(cfg.toConfigPath(cfg.USER_CONFIG_NODES),
   loadInfoFromUserNodesConfig, resetInfoFromUserNodesConfig);
 files.listenFileChanges(cfg.toConfigPath(cfg.USER_CONFIG_REPOS),
   loadInfoFromUserReposConfig, resetInfoFromUserReposConfig);
+files.listenFileChanges(cfg.toConfigPath(cfg.USER_CONFIG_UI),
+  loadInfoFromUserUIConfig, () => {});
 files.listenFileChanges(cfg.toConfigPath(cfg.INTERNAL_CONFIG_MAIN),
   loadInfoFromInternalMainConfig, resetInfoFromInternalMainConfig);
 
 // ---------------------------------------- Start listen
 
 const port = process.env.PORT || 9000;
-app.listen(port, () => {
+
+const server = https.createServer(httpsOptions, app);
+
+server.listen(port, () => {
   console.log('Listening on %s', port);
 });

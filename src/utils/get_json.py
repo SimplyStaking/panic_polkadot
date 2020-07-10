@@ -27,12 +27,12 @@ def get_polkadot_json(endpoint: str, params: Dict, logger: logging.Logger,
     if 'result' in data:
         return data['result']
     elif 'error' in data:
-        if 'Error: API call {} failed.'.format(api_call) in data['error']:
+        if 'API call {} failed.'.format(api_call) in data['error']:
             raise ApiCallFailedException(data['error'])
         elif 'An API for ' + params['websocket'] + \
                 ' needs to be setup before it can be queried' in data['error']:
             raise NodeWasNotConnectedToApiServerException(data['error'])
-        elif 'no reply from node' == data['error']:
+        elif 'Lost connection with node.' == data['error']:
             raise ConnectionWithNodeApiLostException(data['error'])
         elif 'Invalid decoded address' in data['error']:
             raise InvalidStashAccountAddressException(

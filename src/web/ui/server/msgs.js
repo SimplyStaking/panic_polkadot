@@ -7,6 +7,9 @@ module.exports = {
   MSG_RETRY_TIME_EXCEEDED: 'Retry time exceeded',
   MSG_CHAIN_NOT_FOUND: 'Chain not found',
 
+  // Authentication
+  MSG_INVALID_AUTH: 'Incorrect credentials',
+
   // Configs
   MSG_CONFIG_UNRECOGNIZED: 'Config unrecognised',
   MSG_CONFIG_SUBMITTED: 'Config submitted',

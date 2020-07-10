@@ -62,18 +62,19 @@ class RepoConfig:
 
 class UserConfig(ConfigParser):
     # Use user_parsed.py rather than creating a new instance of this class
-    def __init__(self, main_config_file_path: str,
-                 nodes_config_file_path: str,
-                 repos_config_file_path: str) -> None:
+    def __init__(self, main_config_file_path: str, nodes_config_file_path: str,
+                 repos_config_file_path: str, ui_config_file_path: str) -> None:
         super().__init__([main_config_file_path,
                           nodes_config_file_path,
-                          repos_config_file_path])
+                          repos_config_file_path,
+                          ui_config_file_path])
 
         cp = configparser.ConfigParser()
         cp.optionxform = str  # to preserve case of keys
         cp.read(main_config_file_path)
         cp.read(nodes_config_file_path)
         cp.read(repos_config_file_path)
+        cp.read(ui_config_file_path)
 
         # ------------------------ Main Config
 
@@ -177,3 +178,10 @@ class UserConfig(ConfigParser):
 
         self.filtered_repos = [r for r in self.all_repos
                                if r.monitor_repo]
+
+        # ------------------------ UI Config
+
+        # [authentication]
+        self.auth_user = cp['authentication']['username']
+        self.auth_hashed_pass = cp['authentication']['hashed_password']
+        self.cookie_secret = cp['authentication']['cookie_secret']

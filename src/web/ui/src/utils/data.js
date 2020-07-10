@@ -13,6 +13,10 @@ function pingNode(wsUrl) {
     { websocket: wsUrl });
 }
 
+function pingRepo(url) {
+  return fetchData(url);
+}
+
 function pingMongoDB(host, port, user, pass) {
   return sendData('/server/ping_mongo', {}, {
     host, port, user, pass,
@@ -36,6 +40,18 @@ function getAllChainInfo(chainName) {
   return fetchData('/server/all_chain_info', { chainName });
 }
 
+function getAlerts(size, pageNo) {
+  return fetchData('/server/alerts', { size, pageNo });
+}
+
+function getConfig(file) {
+  return fetchData('/server/config', { file });
+}
+
+function sendConfig(file, config) {
+  return sendData('/server/config', { file }, { config });
+}
+
 function sendTestEmail(smtp, from, to, user, pass) {
   return sendData('/server/test_email', {}, {
     smtp, from, to, user, pass,
@@ -49,23 +65,21 @@ function testCall(accountSid, authToken, twilioPhoneNumber,
   });
 }
 
-function getAlerts(size, pageNo) {
-  return fetchData('/server/alerts', { size, pageNo });
+function authenticate(username, password) {
+  return sendData('/server/authenticate', {}, { username, password });
 }
 
-function getConfig(file) {
-  return fetchData('/server/config', { file });
+function getAuthenticationStatus() {
+  return fetchData('/server/get_authentication_status', {});
 }
 
-function sendConfig(file, config) {
-  return sendData('/server/config', { file }, { config });
+function terminateSession() {
+  return sendData('/server/terminate_session', {}, {});
 }
 
 export {
   pingNode, sendData, fetchData, pingMongoDB, pingRedis, pingAPIServer,
   getChainNames, getAllChainInfo, sendTestEmail, testCall, getAlerts,
-  getConfig, sendConfig,
+  getConfig, sendConfig, pingRepo, authenticate, getAuthenticationStatus,
+  terminateSession,
 };
-
-// TODO: Do safe (with try catch) and unsafe (without try catch) if it makes
-//       sense during refactoring to avoid having duplicated code

@@ -1,4 +1,4 @@
-const nodeConfig = {
+const nodesConfig = {
   node_name: '',
   chain_name: '',
   node_ws_url: '',
@@ -9,7 +9,7 @@ const nodeConfig = {
   stash_account_address: '',
 };
 
-const repoConfig = {
+const reposConfig = {
   repo_name: '',
   repo_page: '',
   monitor_repo: 'true',
@@ -58,4 +58,4 @@ const mainUserConfig = {
   },
 };
 
-export { nodeConfig, repoConfig, mainUserConfig };
+export { nodesConfig, reposConfig, mainUserConfig };

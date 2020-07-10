@@ -62,6 +62,9 @@ GET_AUTHORED_BLOCKS_FUNCTION = \
 GET_DISABLED_VALIDATORS_FUNCTION = \
     'src.monitors.node.PolkadotApiWrapper.get_disabled_validators'
 
+GET_ACTIVE_ERA_FUNCTION = \
+    'src.monitors.node.PolkadotApiWrapper.get_active_era'
+
 DATA_SOURCE_INDIRECT_PATH = \
     'src.monitors.node.NodeMonitor.data_source_indirect'
 
@@ -109,6 +112,7 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
             self.polkadot_api_endpoint, TestInternalConf)
 
         self.dummy_session_index = 60
+        self.dummy_era_index = 50
         self.dummy_last_height_checked = 1000
         self.dummy_height_to_check = 1000
         self.dummy_bonded_balance = scale_to_tera(5)
@@ -219,6 +223,9 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
 
     def test_session_index_NONE_by_default(self) -> None:
         self.assertEqual(NONE, self.validator_monitor.session_index)
+
+    def test_era_index_NONE_by_default(self) -> None:
+        self.assertEqual(NONE, self.validator_monitor.era_index)
 
     def test_last_height_checked_NONE_by_default(self) -> None:
         self.assertEqual(NONE, self.validator_monitor.last_height_checked)
@@ -331,6 +338,7 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
 
     def test_status_returns_as_expected_for_validator_monitor(self) -> None:
         self.validator_monitor._session_index = self.dummy_session_index
+        self.validator_monitor._era_index = self.dummy_era_index
         self.validator_monitor._last_height_checked = \
             self.dummy_last_height_checked
         self.validator._bonded_balance = self.dummy_bonded_balance
@@ -349,14 +357,12 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
                           "elected={}, disabled={}, " \
                           "no_of_blocks_authored={}, " \
                           "finalized_block_height={}, session_index={}, " \
-                          "last_height_checked={}".format(
+                          "era_index={}, last_height_checked={}".format(
             self.dummy_bonded_balance, self.dummy_no_of_peers,
-            self.dummy_active, self.dummy_council_member,
-            self.dummy_elected, self.dummy_disabled,
-            self.dummy_no_of_blocks_authored,
-            self.dummy_finalized_block_height,
-            self.dummy_session_index,
-            self.dummy_last_height_checked)
+            self.dummy_active, self.dummy_council_member, self.dummy_elected,
+            self.dummy_disabled, self.dummy_no_of_blocks_authored,
+            self.dummy_finalized_block_height, self.dummy_session_index,
+            self.dummy_era_index, self.dummy_last_height_checked)
         self.assertEqual(expected_output, self.validator_monitor.status())
 
     def test_status_returns_as_expected_for_full_node_monitor(self) -> None:
@@ -416,6 +422,29 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
 
         self.assertFalse(self.validator_monitor.data_wrapper.is_api_down)
 
+    @patch(PING_NODE_FUNCTION, return_value=None)
+    @patch(GET_SYSTEM_HEALTH_FUNCTION,
+           return_value={"isSyncing": True, "peers": 92,
+                         "shouldHavePeers": True})
+    @patch(GET_FINALIZED_HEAD_FUNCTION,
+           return_value={"0x42ebf471c67fe6dd8a5b535ad2596513e9e54d"})
+    @patch(GET_HEADER_FUNCTION,
+           return_value={"digest": {
+               "logs": ["0x064241424",
+                        "0x05424c64ec57d9d0b3fb0a9f46146e517bf310d82cd3448e"]},
+               "extrinsicsRoot": "0xffb51f954a94",
+               "number": "523686",
+               "parentHash": "0x0d676112b55cb14b200a94da",
+               "stateRoot": "0xbdbdf6d9b93945e42e0beac"})
+    def test_monitor_direct_connects_node_to_api_if_monitoring_successful(
+            self, _1, _2, _3, _4) -> None:
+        self.validator.disconnect_from_api(self.channel_set, self.logger)
+        self.assertFalse(self.validator.is_connected_to_api_server)
+        self.counter_channel.reset()
+        self.validator_monitor.monitor_direct()
+
+        self.assertTrue(self.validator.is_connected_to_api_server)
+
     @patch(GET_BLOCK_HASH_FUNCTION, return_value=None)
     @patch(GET_SLASH_AMOUNT_FUNCITON, return_value=50)
     def test_check_for_slashing_calls_node_slash_function_amount_greater_than_0(
@@ -440,6 +469,43 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
 
     def test_check_for_new_session_sets_and_does_not_modify_node_state_first_time_round(
             self) -> None:
+        self.validator_monitor.node._no_of_blocks_authored = \
+            self.dummy_no_of_blocks_authored
+
+        self.validator_monitor._check_for_new_session(self.dummy_session_index)
+
+        self.assertEqual(self.validator_monitor.session_index,
+                         self.dummy_session_index)
+        self.assertEqual(self.dummy_no_of_blocks_authored,
+                         self.validator_monitor.node._no_of_blocks_authored)
+
+    def test_check_for_new_session_sets_and_modifies_node_state_if_new_session(
+            self) -> None:
+        self.validator_monitor._session_index = self.dummy_session_index - 1
+        self.validator_monitor.node._no_of_blocks_authored = \
+            self.dummy_no_of_blocks_authored
+
+        self.validator_monitor._check_for_new_session(self.dummy_session_index)
+
+        self.assertEqual(self.validator_monitor.session_index,
+                         self.dummy_session_index)
+        self.assertEqual(0, self.validator_monitor.node._no_of_blocks_authored)
+
+    def test_check_for_new_session_does_nothing_if_same_session(
+            self) -> None:
+        self.validator_monitor._session_index = self.dummy_session_index
+        self.validator_monitor.node._no_of_blocks_authored = \
+            self.dummy_no_of_blocks_authored
+
+        self.validator_monitor._check_for_new_session(self.dummy_session_index)
+
+        self.assertEqual(self.validator_monitor.session_index,
+                         self.dummy_session_index)
+        self.assertEqual(self.dummy_no_of_blocks_authored,
+                         self.validator_monitor.node._no_of_blocks_authored)
+
+    def test_check_for_new_era_sets_and_does_not_modify_node_state_first_time_round(
+            self) -> None:
         self.validator_monitor.node.set_time_of_last_block(
             10.3, self.channel_set, self.logger)
         self.validator_monitor.node._no_of_blocks_authored = \
@@ -452,10 +518,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         self.validator_monitor.node.set_time_of_last_block_check_activity(
             34.4, self.channel_set, self.logger)
 
-        self.validator_monitor._check_for_new_session(self.dummy_session_index)
+        self.validator_monitor._check_for_new_era(self.dummy_era_index)
 
-        self.assertEqual(self.validator_monitor.session_index,
-                         self.dummy_session_index)
+        self.assertEqual(self.validator_monitor.era_index,
+                         self.dummy_era_index)
         self.assertEqual(10.3, self.validator_monitor.node._time_of_last_block)
         self.assertEqual(self.dummy_no_of_blocks_authored,
                          self.validator_monitor.node._no_of_blocks_authored)
@@ -466,9 +532,9 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         self.assertEqual(34.4, self.validator_monitor.node.
                          _time_of_last_block_check_activity)
 
-    def test_check_for_new_session_sets_and_modifies_node_state_if_new_session(
+    def test_check_for_new_era_sets_and_modifies_node_state_if_new_era(
             self) -> None:
-        self.validator_monitor._session_index = self.dummy_session_index - 1
+        self.validator_monitor._era_index = self.dummy_era_index - 1
         self.validator_monitor.node.set_time_of_last_block(
             10.3, self.channel_set, self.logger)
         self.validator_monitor.node._no_of_blocks_authored = \
@@ -481,12 +547,13 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         self.validator_monitor.node.set_time_of_last_block_check_activity(
             34.4, self.channel_set, self.logger)
 
-        self.validator_monitor._check_for_new_session(self.dummy_session_index)
+        self.validator_monitor._check_for_new_era(self.dummy_era_index)
 
-        self.assertEqual(self.validator_monitor.session_index,
-                         self.dummy_session_index)
+        self.assertEqual(self.validator_monitor.era_index,
+                         self.dummy_era_index)
         self.assertEqual(NONE, self.validator_monitor.node._time_of_last_block)
-        self.assertEqual(0, self.validator_monitor.node._no_of_blocks_authored)
+        self.assertEqual(self.dummy_no_of_blocks_authored,
+                         self.validator_monitor.node._no_of_blocks_authored)
         self.assertNotEqual(
             last_time_did_task, self.validator_monitor.node.
                 blocks_authored_alert_limiter.last_time_that_did_task)
@@ -494,9 +561,9 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         self.assertEqual(NONE, self.validator_monitor.node.
                          _time_of_last_block_check_activity)
 
-    def test_check_for_new_session_does_nothing_if_same_session(
+    def test_check_for_new_era_does_nothing_if_same_era(
             self) -> None:
-        self.validator_monitor._session_index = self.dummy_session_index
+        self.validator_monitor._era_index = self.dummy_era_index
         self.validator_monitor.node.set_time_of_last_block(
             10.3, self.channel_set, self.logger)
         self.validator_monitor.node._no_of_blocks_authored = \
@@ -509,10 +576,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
         self.validator_monitor.node.set_time_of_last_block_check_activity(
             34.4, self.channel_set, self.logger)
 
-        self.validator_monitor._check_for_new_session(self.dummy_session_index)
+        self.validator_monitor._check_for_new_era(self.dummy_era_index)
 
-        self.assertEqual(self.validator_monitor.session_index,
-                         self.dummy_session_index)
+        self.assertEqual(self.validator_monitor.era_index,
+                         self.dummy_era_index)
         self.assertEqual(10.3, self.validator_monitor.node._time_of_last_block)
         self.assertEqual(self.dummy_no_of_blocks_authored,
                          self.validator_monitor.node._no_of_blocks_authored)
@@ -534,20 +601,51 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
-    def test_monitor_indirect_sets_API_up_when_validator_indirect_monitoring_succesfull(
-            self, _1, _2, _3, _4, _5, _6, _7) -> None:
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
+    def test_monitor_indirect_sets_API_up_when_validator_indirect_monitoring_successful(
+            self, _1, _2, _3, _4, _5, _6, _7, _8) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
+            self.validator_monitor.last_data_source_used = \
+                self.dummy_full_node_1
 
             self.validator_monitor._archive_alerts_disabled = True
             self.validator_monitor.monitor_indirect()
             self.assertFalse(self.validator_monitor.data_wrapper.is_api_down)
 
+    @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
+    @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
+    @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
+    @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
+    @patch(GET_ERAS_STAKERS_FUNCTION,
+           return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
+    def test_monitor_indirect_connects_data_source_with_api_if_monitoring_successful(
+            self, _1, _2, _3, _4, _5, _6, _7, _8) -> None:
+        with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
+                as mock_data_source_indirect:
+            mock_data_source_indirect.return_value = self.dummy_full_node_1
+            self.validator_monitor.last_data_source_used = \
+                self.dummy_full_node_1
+            self.validator_monitor.last_data_source_used.disconnect_from_api(
+                self.channel_set, self.logger)
+
+            self.validator_monitor._archive_alerts_disabled = True
+            self.validator_monitor.monitor_indirect()
+            self.assertTrue(self.validator_monitor.last_data_source_used.
+                            is_connected_to_api_server)
+
     def test_monitor_indirect_full_node_sets_values_as_expected(self) -> None:
         self.full_node_monitor.monitor_indirect()
 
         self.assertEqual(self.full_node_monitor.session_index, NONE)
+        self.assertEqual(self.full_node_monitor.era_index, NONE)
         self.assertEqual(self.full_node_monitor.node.bonded_balance, 0)
         self.assertFalse(self.full_node_monitor.node.is_active)
         self.assertFalse(self.full_node_monitor.node.is_disabled)
@@ -564,9 +662,31 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 45, "start": 20})
+    @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
+    def test_monitor_indirect_validator_sets_active_true_if_validator_stash_in_set(
+            self, _1, _2, _3, _4, _5, _6, _7, _8) -> None:
+        with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
+                as mock_data_source_indirect:
+            mock_data_source_indirect.return_value = self.dummy_full_node_1
+
+            self.validator_monitor._monitor_indirect_validator()
+            self.assertEqual(self.validator_monitor.era_index, 45)
+
+    @patch(GET_DISABLED_VALIDATORS_FUNCTION, return_value=[])
+    @patch(GET_AUTHORED_BLOCKS_FUNCTION, return_value=0)
+    @patch(GET_CURRENT_INDEX_FUNCTION, return_value=45)
+    @patch(GET_DERIVE_STAKING_VALIDATORS, return_value={
+        'validators': [],
+        'nextElected': [],
+    })
+    @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
+    @patch(GET_ERAS_STAKERS_FUNCTION,
+           return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_active_true_if_validator_stash_in_set(
-            self, mock_session_val, _1, _2, _3, _4, _5, _6) -> None:
+            self, mock_session_val, _1, _2, _3, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -587,9 +707,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_active_false_if_validator_stash_not_in_set(
-            self, mock_session_val, _1, _2, _3, _4, _5, _6) -> None:
+            self, mock_session_val, _1, _2, _3, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -609,9 +730,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_auth_index_correctly_if_validator_active(
-            self, mock_session_val, _1, _2, _3, _4, _5, _6) -> None:
+            self, mock_session_val, _1, _2, _3, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -633,9 +755,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_does_not_set_auth_index_if_validator_inactive(
-            self, mock_session_val, _1, _2, _3, _4, _5, _6) -> None:
+            self, mock_session_val, _1, _2, _3, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -660,9 +783,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_disabled_true_if_validator_in_disabled_list(
-            self, mock_session_val, _1, _2, _3, _4, _5, mock_disabled_val) \
+            self, mock_session_val, _1, _2, _3, _4, _5, _6, mock_disabled_val) \
             -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
@@ -686,9 +810,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_sets_disabled_false_if_validator_in_disabled_list(
-            self, mock_session_val, _1, _2, _3, _4, _5, mock_disabled_val) \
+            self, mock_session_val, _1, _2, _3, _4, _5, _6, mock_disabled_val) \
             -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
@@ -709,9 +834,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_elected_true_if_validator_in_elected_list(
-            self, _1, _2, _3, mock_elected, _5, _6, _7) -> None:
+            self, _1, _2, _3, _4, mock_elected, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -732,9 +858,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_elected_false_if_validator_not_in_elected_list(
-            self, _1, _2, _3, mock_elected, _4, _5, _6) -> None:
+            self, _1, _2, _3, mock_elected, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -756,9 +883,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION)
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_council_member_true_if_validator_in_council_list(
-            self, _1, _2, mock_council_mem, _3, _4, _5, _6) -> None:
+            self, _1, _2, _3, mock_council_mem, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -780,9 +908,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION)
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_sets_council_member_false_if_validator_not_in_council_list(
-            self, _1, _2, mock_council_mem, _3, _4, _5, _6) -> None:
+            self, _1, _2, _3, mock_council_mem, _4, _5, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -802,9 +931,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
-    def test_monitor_indirect_validator_sets_validator_blocks_authored_to_retrieved_val_if_validator_active(
-            self, mock_session_val, _2, _3, _4, _5, mock_authored_blocks,
+    def test_monitor_indirect_validator_sets_validator_blocks_authored_to_retrieved_if_validator_active(
+            self, mock_session_val, _1, _2, _3, _4, _5, mock_authored_blocks,
             _6) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
@@ -829,9 +959,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_does_not_set_validator_blocks_authored_if_validator_not_active(
-            self, _1, _2, _3, _4, _5, mock_authored_blocks, _6) -> None:
+            self, _1, _2, _3, _4, _5, mock_authored_blocks, _6, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -853,9 +984,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_calls_monitor_archive_if_not_disabled(
-            self, _1, _2, _3, _4, _5, _6, _7) -> None:
+            self, _1, _2, _3, _4, _5, _6, _7, _8) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -875,9 +1007,10 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_COUNCIL_MEMBERS_FUNCTION, return_value=[])
     @patch(GET_ERAS_STAKERS_FUNCTION,
            return_value={"total": 0, "own": 0, "others": []})
+    @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_indirect_validator_does_not_call_monitor_archive_if_disabled(
-            self, _1, _2, _3, _4, _5, _6, _7) -> None:
+            self, _1, _2, _3, _4, _5, _6, _7, _8) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
@@ -1084,6 +1217,7 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
             self.polkadot_api_endpoint, TestInternalConf)
 
         self.dummy_session_index = 60
+        self.dummy_era_index = 30
         self.dummy_last_height_checked = 1000
 
         self.redis_alive_key_timeout = \
@@ -1093,13 +1227,16 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
         self.monitor.load_state()
 
         self.assertEqual(NONE, self.monitor._session_index)
+        self.assertEqual(NONE, self.monitor._era_index)
         self.assertEqual(NONE, self.monitor._last_height_checked)
 
     def test_load_state_sets_values_to_saved_values(self) -> None:
         # Set Redis values manually
         key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+        key_ei = Keys.get_node_monitor_era_index(self.monitor_name)
         key_lh = Keys.get_node_monitor_last_height_checked(self.monitor_name)
         self.redis.set_unsafe(key_si, self.dummy_session_index)
+        self.redis.set_unsafe(key_ei, self.dummy_era_index)
         self.redis.set_unsafe(key_lh, self.dummy_last_height_checked)
 
         # Load the values from Redis
@@ -1107,6 +1244,7 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
 
         # Assert
         self.assertEqual(self.dummy_session_index, self.monitor.session_index)
+        self.assertEqual(self.dummy_era_index, self.monitor.era_index)
         self.assertEqual(self.dummy_last_height_checked,
                          self.monitor.last_height_checked)
 
@@ -1114,12 +1252,14 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
             self) -> None:
         # Set monitor values manually
         self.monitor._session_index = self.dummy_session_index
+        self.monitor._era_index = self.dummy_era_index
         self.monitor._last_height_checked = self.dummy_last_height_checked
 
         # Save the values to Redis
         self.monitor.save_state()
 
         key_si = Keys.get_node_monitor_session_index(self.monitor_name)
+        key_ei = Keys.get_node_monitor_era_index(self.monitor_name)
         key_lh = Keys.get_node_monitor_last_height_checked(self.monitor_name)
 
         # Get last update, and its timeout in Redis
@@ -1128,6 +1268,7 @@ class TestNodeMonitorWithRedis(unittest.TestCase):
 
         # Assert
         self.assertEqual(self.dummy_session_index, self.redis.get_int(key_si))
+        self.assertEqual(self.dummy_era_index, self.redis.get_int(key_ei))
         self.assertEqual(self.dummy_last_height_checked,
                          self.redis.get_int(key_lh))
         self.assertIsNotNone(last_update)

@@ -5,8 +5,8 @@ from datetime import timedelta
 from time import sleep
 from unittest.mock import patch
 
-from redis import ConnectionError as RedisConnectionError, DataError, \
-    AuthenticationError
+from redis import ConnectionError as RedisConnectionError, DataError,\
+    AuthenticationError, ResponseError
 
 from src.store.redis.redis_api import RedisApi
 from test import TestInternalConf, TestUserConf
@@ -87,6 +87,8 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
             self.fail('Expected AuthenticationError to be thrown')
         except AuthenticationError:
             pass
+        except ResponseError:
+            pass
 
     def test_set_unsafe_sets_the_specified_key_to_the_specified_value(self):
         self.redis.set_unsafe(self.key1, self.val1)
@@ -110,6 +112,8 @@ class TestRedisApiWithRedisOnline(unittest.TestCase):
             redis_bad_pass.hset_unsafe(hash_name, self.key1, self.val1)
             self.fail('Expected AuthenticationError to be thrown')
         except AuthenticationError:
+            pass
+        except ResponseError:
             pass
 
     def test_hset_unsafe_sets_the_specified_key_to_the_specified_value(self):

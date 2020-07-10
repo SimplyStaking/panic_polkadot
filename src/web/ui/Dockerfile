@@ -10,7 +10,7 @@ COPY ./run_ui_server.sh ./
 WORKDIR ./src/web/ui
 COPY ./src/web/ui ./
 
-#RUN npm install
+# RUN npm install
 RUN npm ci --only=production
 
 # Build UI

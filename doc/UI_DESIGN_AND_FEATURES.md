@@ -10,11 +10,11 @@ The design is responsive, meaning the Web UI can be viewed from any device.
 
 The components at play when using the Web UI are the following:
 - **Web UI**: The front-end which the **node operator** uses to set up PANIC, visualize alerts, and monitor the state of nodes and chains together with the alerter itself.
-- **Web UI Backend**: A Node.js server used by the **Web UI** to retrieve data from the PANIC store so that it can be visualized in the front-end, and to send data to the PANIC store so that PANIC can be (re-)configured.
-- **PANIC Store**: **Redis**, **MongoDB** and the **Configs**. These store the current state of the alerter/nodes/blockchains, the alerts and the PANIC setup respectively.
+- **Web UI Backend**: A Node.js HTTPS server used to retrieve data from the PANIC store so that it can be visualized in the front-end, and to send data to the PANIC store so that PANIC can be (re-)configured.
+- **PANIC Store**: **Redis**, **MongoDB** and the **Configs**. These store the current state of the alerter/nodes/blockchains, the alerts, and the PANIC setup respectively.
 - **Node operator**: The user making use of the **Web UI**.
 
-The above components can be visualised as follows, along with the remaining components of PANIC (when it is running) represented as **Other Components**:
+The interaction between the components above and the remaining components of PANIC (when it is running) represented as **Other Components**, can be visualized as follows:
 
 <img src="./images/IMG_UI_DESIGN.png" alt="UI Design"/>
 
@@ -28,7 +28,7 @@ The Web UI is a clean and easy-to-navigate interface. It consists of a number of
 
 ### Dashboard Page
 
-The aim of the dashboard is to show the current state of the nodes, chains and monitors using data stored in Redis. It detects which chains/nodes are being monitored by PANIC using the `user_config_nodes.ini` file. Therefore, the user must first setup PANIC as described [here](./SETUP.md) to create the config files, and then must make sure that PANIC is (re-)started manually.
+The aim of the dashboard is to show the current state of the nodes, chains, and monitors, using data stored in Redis. It detects which chains/nodes are being monitored by PANIC using the `user_config_nodes.ini` file.
 
 The dashboard groups nodes and monitors according to the chain they belong to. This means that one can choose which chain they want to view dynamically.
 
@@ -131,19 +131,19 @@ The aim of the Settings Pages is to provide an easy setup for PANIC. In the curr
 - **Nodes Settings Page**, used to add new nodes for monitoring. Generates the `user_config_nodes.ini` config.
 - **Repos Settings Page**, used to add new repos for monitoring. Generates the `user_config_repos.ini` config.
 
-The settings pages were developed keeping user friendliness in mind. In fact, in all pages, *testing buttons* together with *validation mechanisms* are provided so that the user can be sure that correct data is being inputted. In addition to this, information is provided for each input field along with example data so that the user knows what data should be inputted.
+The Settings Pages were developed keeping user friendliness in mind. In fact, in all pages, *testing buttons* together with *validation mechanisms* are provided so that the user can be sure that correct data is being inputted. In addition to this, information is provided for each input field along with example data so that the user knows what data should be inputted.
 
-A feature of the settings pages is that they are able to load data in the page from the corresponding config if it exists already. This helps the user visualize the latest PANIC configuration and adjust accordingly if need be.
+A feature of the Settings Pages is that they are able to load data in the page from the corresponding config if it exists already. This helps the user visualize the latest PANIC configuration and adjust accordingly if need be.
 
 Another important thing worth mentioning is that the alerter is not able to detect changes in the config files, therefore, whenever the alerter is (re-)configured, the user must make sure that PANIC is (re-)started.
 
-For a detailed read on how to set-up PANIC using the settings pages please [read this guide](./SETUP.md#using-the-web-ui)
+For a detailed read on how to set-up the alerter using the settings pages please [read this guide](./SETUP_ALERTER.md#using-the-web-ui)
 
 ### Preferences Page
 
-The Preferences Page is used for alert fine-tuning. The user can use the preferences page to switch on/off (green/grey toggle) specific alerts or alert severities. As a result, the Preferences Page gives more fine-grained power over the alerts that PANIC emits.  
+The Preferences Page is used for alert fine-tuning. The user can use the Preferences Page to switch on/off specific alerts or alert severities. As a result, the Preferences Page gives more fine-grained power over the alerts that PANIC emits.  
 
-Similarly to the settings pages, the Preferences Page generates the `internal_config_alerts.ini` config. The page is also able to detect the current configuration in the `internal_config_alerts.ini` config. However, the alerter is not able to detect changes in the `internal_config_alert.ini` config, and therefore the alerter must be (re-)started whenever this config is updated.
+Similarly to the Settings Pages, the Preferences Page generates the `internal_config_alerts.ini` config. The page is also able to detect the current configuration in the `internal_config_alerts.ini` config. However, the alerter is not able to detect changes in the `internal_config_alert.ini` config, and therefore the alerter must be (re-)started whenever this config is updated.
 
 ---
 [Back to main design page](./DESIGN_AND_FEATURES.md)
