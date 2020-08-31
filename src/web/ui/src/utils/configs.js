@@ -59,7 +59,8 @@ function fieldEmpty(data) {
 function highestItemIndexInConfig(config, prefix = '') {
   let highestItemIndex = -1;
   Object.keys(config).forEach((key) => {
-    const itemNumber = parseInt(key.substr(key.length - 1), 10);
+    const itemNumber = parseInt(key.substr(key.indexOf('_') + 1, key.length),
+      10);
     if (key.startsWith(prefix) && !Number.isNaN(itemNumber)
       && itemNumber > highestItemIndex) {
       highestItemIndex = itemNumber;

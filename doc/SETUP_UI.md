@@ -4,7 +4,7 @@ To set up the UI you need to do two things. First, since the UI server is an HTT
 
 We suggest reading [this](https://nodejs.org/en/knowledge/HTTP/servers/how-to-create-a-HTTPS-server/) for more details on SSL certificates, and how to generate a self signed certificate in case you do not want to obtain a certificate signed by a certificate authority. However, for maximum security, the self signed certificate option is not recommended.
 
-To prevent malicious access to infrastructure details stored in the web UI, the UI can only be accessed via authentication credentials. These credentials can be defined by running the `run_ui_setup.py` setup script in the project directory:
+To prevent malicious access to infrastructure details stored in the web UI, the UI can only be accessed via authentication credentials. These credentials can be defined by running the `run_ui_setup.py` setup script in the project directory. Note that for this setup to run as expected, it must be executed in a proper terminal:
 ```bash
 pipenv sync                         # use sudo in linux if necessary
 pipenv run python run_ui_setup.py   # use sudo in linux if necessary

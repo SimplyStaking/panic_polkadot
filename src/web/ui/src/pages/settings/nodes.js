@@ -48,7 +48,8 @@ function NodesTableContent({ nodesConfigJson, handleRemoveNode }) {
         {generateAddedTableValues(data.stash_account_address, false)}
         <td>
           <RemoveButton
-            itemKey={parseInt(node.substr(node.length - 1), 10)}
+            itemKey={parseInt(node.substr(node.indexOf('_') + 1, node.length),
+              10)}
             handleRemove={handleRemoveNode}
           />
         </td>
