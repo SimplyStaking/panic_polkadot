@@ -4,6 +4,19 @@
 
 <!--New features/improvements/fixes go here-->
 
+## 2.1.1
+
+Released on 31th August 2020
+
+### Improvements
+
+*(UI Setup) When the user inputs the password during the UI setup process, the password is not displayed on the terminal. Note that for this setup script to execute as expected, the UI setup process must be executed inside a proper terminal.
+*(UI Server) The UI server now requires authentication to get data from any endpoint.
+
+### Bug Fixes
+
+*(UI Nodes and Repos pages) The remove button in the Added Nodes/Repos table no longer fails to remove a node from the list if there are more than 9 nodes.
+
 ## 2.1.0
 
 Released on 10th July 2020

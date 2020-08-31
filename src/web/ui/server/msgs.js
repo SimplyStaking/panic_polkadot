@@ -9,6 +9,7 @@ module.exports = {
 
   // Authentication
   MSG_INVALID_AUTH: 'Incorrect credentials',
+  MSG_NOT_AUTHORIZED: 'Not authorized',
 
   // Configs
   MSG_CONFIG_UNRECOGNIZED: 'Config unrecognised',

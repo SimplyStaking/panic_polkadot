@@ -356,6 +356,11 @@ app.get('/server/config', async (req, res) => {
   console.log('Received GET request for %s', req.url);
   const { file } = req.query;
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    return res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+  }
+
   if (!file) {
     return res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
@@ -385,6 +390,11 @@ app.post('/server/config', async (req, res) => {
   const { file } = req.query;
   const { config } = req.body;
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    return res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+  }
+
   if (!(file && config)) {
     return res.status(utils.ERR_STATUS)
       .send(utils.errorJson(msg.MSG_MISSING_ARGUMENTS));
@@ -411,6 +421,11 @@ function getRedisKeyPrefix() {
 app.get('/server/alerts', async (req, res) => {
   console.log('Received GET request for %s', req.url);
   const { pageNo, size } = req.query;
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
 
   if (!(pageNo && size)) {
     res.status(utils.ERR_STATUS)
@@ -476,6 +491,11 @@ app.get('/server/chains', async (req, res) => {
   console.log('Received GET request for %s', req.url);
   const onlyIfMonitored = req.query.onlyIfMonitored || '';
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
+
   // Apply filter if we only want chains for
   // which the nodes are involved in monitoring
   if (utils.toBool(onlyIfMonitored)) {
@@ -492,6 +512,11 @@ app.get('/server/chain_nodes_map', async (req, res) => {
   console.log('Received GET request for %s', req.url);
   const onlyIfMonitored = req.query.onlyIfMonitored || '';
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
+
   // Apply filter if we only want chains for
   // which the nodes are involved in monitoring
   if (utils.toBool(onlyIfMonitored)) {
@@ -505,6 +530,11 @@ app.get('/server/chain_nodes_map', async (req, res) => {
 
 app.get('/server/all_chain_info', async (req, res) => {
   console.log('Received GET request for %s', req.url);
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
 
   if (!redisInfo || (redisInfo.enabled && !utils.toBool(redisInfo.enabled))) {
     console.error(msg.MSG_REDIS_NOT_SET_UP_LONG);
@@ -726,6 +756,11 @@ app.get('/server/all_chain_info', async (req, res) => {
 app.get('/server/repos', async (req, res) => {
   console.log('Received GET request for %s', req.url);
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    return res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+  }
+
   // Return list of repo names obtained from the configs
   const repos = Array.from(repoNameList);
   return res.status(utils.SUCCESS_STATUS)
@@ -736,6 +771,12 @@ app.get('/server/repos', async (req, res) => {
 
 app.post('/server/ping_server', async (req, res) => {
   console.log('Received POST request for %s', req.url);
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    return res.status(utils.ERR_STATUS)
+      .send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+  }
+
   try {
     // Just return a success message
     return res.status(utils.SUCCESS_STATUS)
@@ -749,6 +790,11 @@ app.post('/server/ping_server', async (req, res) => {
 app.post('/server/ping_redis', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   const { host, port, password } = req.body;
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
 
   // Error if missing arguments
   if (!(host && port)) {
@@ -794,6 +840,11 @@ app.post('/server/ping_mongo', async (req, res) => {
     host, port, user, pass,
   } = req.body;
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
+
   // Error if missing arguments
   if (!(host && port)) {
     res.status(utils.ERR_STATUS)
@@ -822,6 +873,11 @@ app.post('/server/ping_mongo', async (req, res) => {
 app.post('/server/polkadot_api_server/ping_api', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   const { endpoint } = req.body;
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
 
   // Error if missing arguments
   if (!endpoint) {
@@ -853,6 +909,11 @@ app.post('/server/polkadot_api_server/ping_api', async (req, res) => {
 app.post('/server/polkadot_api_server/ping_node', async (req, res) => {
   console.log('Received POST request for %s', req.url);
   const { websocket } = req.body;
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
 
   // Error if missing arguments or Polkadot API server not configured
   if (!websocket) {
@@ -893,6 +954,11 @@ app.post('/server/test_twilio', async (req, res) => {
     twilioPhoneNumber, phoneNumberToDial,
   } = req.body;
 
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
+
   // Error if missing arguments
   if (!(accountSid && authToken && twilioPhoneNumber && phoneNumberToDial)) {
     res.status(utils.ERR_STATUS)
@@ -931,6 +997,11 @@ app.post('/server/test_email', async (req, res) => {
   const {
     smtp, from, to, user, pass,
   } = req.body;
+
+  if (!authDetailsValid(req.session.username, req.session.password)) {
+    res.status(utils.ERR_STATUS).send(utils.errorJson(msg.MSG_NOT_AUTHORIZED));
+    return;
+  }
 
   // Error if missing arguments
   if (!(smtp && from && to)) {

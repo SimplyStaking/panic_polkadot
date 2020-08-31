@@ -29,110 +29,84 @@ function ChevronButton({
 }
 
 function SaveConfigButton({ configName, config }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info('Saving config', 5000);
+      await sendConfig(configName, config);
+      ToastsStore.success('Config saved', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Saving failed. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Saving failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
     <div className="div-content-centre-style-margin-top">
-      <Button
-        className="button-style2"
-        onClick={async () => {
-          try {
-            ToastsStore.info('Saving config', 5000);
-            await sendConfig(configName, config);
-            ToastsStore.success('Config saved', 5000);
-          } catch (e) {
-            if (e.response) {
-              // The request was made and the server responded
-              // with a status code that falls out of the
-              // range of 2xx
-              ToastsStore.error(
-                `Saving failed. Error: ${
-                  e.response.data.error
-                }`, 5000,
-              );
-            } else {
-              // Something happened in setting up the request
-              // that triggered an Error
-              ToastsStore.error(
-                `Saving failed. Error: ${e.message}`, 5000,
-              );
-            }
-          }
-        }
-        }
-      >
-        Save Config
-      </Button>
+      <Button className="button-style2" onClick={onClick}>Save Config</Button>
     </div>
   );
 }
 
 function PingNodeButton({ disabled, wsUrl }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Pinging node ${wsUrl}`, 5000);
+      await pingNode(wsUrl);
+      ToastsStore.success('Ping successful', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Ping request failed. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Ping request failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Pinging node ${wsUrl}`, 5000);
-          await pingNode(wsUrl);
-          ToastsStore.success('Ping successful', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded
-            // with a status code that falls out of the
-            // range of 2xx
-            ToastsStore.error(
-              `Ping request failed. Error: ${e.response.data.error}`,
-              5000,
-            );
-          } else {
-            // Something happened in setting up the request
-            // that triggered an Error
-            ToastsStore.error(`Ping request failed. Error: ${e.message}`, 5000);
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Test via API
     </Button>
   );
 }
 
 function PingRepoButton({ disabled, repo }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Connecting with repo ${repo}`, 5000);
+      // Remove last '/' to connect with https://api.github.com/repos/repoPage`.
+      await pingRepo(
+        `https://api.github.com/repos/${repo.substring(0, repo.length - 1)}`,
+      );
+      ToastsStore.success('Successfully connected', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Could not connect with repo ${repo}. Error: ${
+            e.response.data.message}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(
+          `Could not connect with repo ${repo}. Error: ${e.message}`, 5000,
+        );
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Connecting with repo ${repo}`, 5000);
-          // Remove last '/' to connect with
-          // https://api.github.com/repos/repoPage`.
-          await pingRepo(
-            `https://api.github.com/repos/${
-              repo.substring(0, repo.length - 1)
-            }`,
-          );
-          ToastsStore.success('Successfully connected', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Could not connect with repo ${repo}. Error: ${
-                e.response.data.message}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request
-            // that triggered an Error
-            ToastsStore.error(
-              `Could not connect with repo ${repo}. Error: ${e.message}`, 5000,
-            );
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Connect with repo
     </Button>
   );
@@ -145,128 +119,100 @@ function RemoveButton({ handleRemove, itemKey }) {
       onClick={() => handleRemove(itemKey)}
       type="button"
     >
-      <FontAwesomeIcon
-        icon={faTimesCircle}
-        color="red"
-        className="fa-remove"
-      />
+      <FontAwesomeIcon icon={faTimesCircle} color="red" className="fa-remove" />
     </button>
   );
 }
 
 function ConnectWithBotButton({ disabled, botToken }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Connecting with bot ${botToken}`, 5000);
+      await fetchData(`https://api.telegram.org/bot${botToken}/getME`);
+      ToastsStore.success('Connection successful', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        ToastsStore.error(
+          `Connection failed. Error: ${e.response.data.description}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Connecting with bot ${botToken}`, 5000);
-          await fetchData(`https://api.telegram.org/bot${botToken}/getME`);
-          ToastsStore.success('Connection successful', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Connection failed. Error: ${e.response.data.description}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // Error
-            ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Connect With Bot
     </Button>
   );
 }
 
 function SendTestAlertButton({ disabled, botChatID, botToken }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(
+        'Sending test alert. Make sure to check the chat corresponding '
+        + `with chat id ${botChatID}`, 5000,
+      );
+      await fetchData(`https://api.telegram.org/bot${botToken}`
+        + '/sendMessage', {
+        chat_id: botChatID,
+        text: '*Test Alert*',
+        parse_mode: 'Markdown',
+      });
+      ToastsStore.success('Test alert sent successfully', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Could not send test alert. Error: ${e.response.data.description}`,
+          5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(
+          `Could not send test alert. Error: ${e.message}`, 5000,
+        );
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(
-            'Sending test alert. Make sure to check the chat corresponding '
-            + `with chat id ${botChatID}`, 5000,
-          );
-          await fetchData(
-            `https://api.telegram.org/bot${botToken}`
-            + '/sendMessage', {
-              chat_id: botChatID,
-              text: '*Test Alert*',
-              parse_mode: 'Markdown',
-            },
-          );
-          ToastsStore.success('Test alert sent successfully', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded
-            // with a status code that falls out of the
-            // range of 2xx
-            ToastsStore.error(
-              `Could not send test alert. 
-               Error: ${e.response.data.description}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request
-            // that triggered an Error
-            ToastsStore.error(
-              `Could not send test alert. Error: ${e.message}`, 5000,
-            );
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Send test alert
     </Button>
   );
 }
 
 function PingBotButton({ disabled, botToken, botChatID }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Pinging bot ${botToken}.`, 5000);
+      await fetchData(`https://api.telegram.org/bot${botToken}`
+        + '/sendMessage', {
+        chat_id: botChatID,
+        text: 'PONG!',
+        parse_mode: 'Markdown',
+      });
+      ToastsStore.success('Ping request sent. Make sure to check the chat '
+        + `corresponding with chat id ${botChatID} for a PONG!`, 7000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(`Ping request failed. Error: ${
+          e.response.data.description}`, 5000);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Ping request failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Pinging bot ${botToken}.`, 5000);
-          await fetchData(
-            `https://api.telegram.org/bot${botToken}`
-            + '/sendMessage', {
-              chat_id: botChatID,
-              text: 'PONG!',
-              parse_mode: 'Markdown',
-            },
-          );
-          ToastsStore.success(
-            'Ping request sent. Make sure to check the chat '
-            + `corresponding with chat id ${botChatID} for a PONG!`, 7000,
-          );
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Ping request failed. Error: ${e.response.data.description}`,
-              5000,
-            );
-          } else {
-            // Something happened in setting up the request
-            // that triggered an Error
-            ToastsStore.error(`Ping request failed. Error: ${e.message}`, 5000);
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Ping bot
     </Button>
   );
@@ -275,36 +221,26 @@ function PingBotButton({ disabled, botToken, botChatID }) {
 function SendTestEmailButton({
   disabled, to, smtp, from, user, pass,
 }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Sending test e-mail to address ${to}`, 5000);
+      await sendTestEmail(smtp, from, to, user, pass);
+      ToastsStore.success('Test e-mail sent successfully, check inbox', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(`Could not send test e-mail. Error: ${
+          e.response.data.error}`, 5000);
+      } else {
+        // Something happened in setting up the request that triggered an error
+        ToastsStore.error(`Could not send test e-mail. Error: ${e.message}`,
+          5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Sending test e-mail to address ${to}`, 5000);
-          await sendTestEmail(smtp, from, to, user, pass);
-          ToastsStore.success(
-            'Test e-mail sent successfully, check inbox', 5000,
-          );
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Could not send test e-mail. Error: ${e.response.data.error}`,
-              5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // error
-            ToastsStore.error(
-              `Could not send test e-mail. Error: ${e.message}`, 5000,
-            );
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Send test e-mail
     </Button>
   );
@@ -313,34 +249,26 @@ function SendTestEmailButton({
 function TestCallButton({
   disabled, phoneNoToDial, accountSid, authToken, twilioPhoneNo,
 }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Calling number ${phoneNoToDial}`, 5000);
+      await testCall(accountSid, authToken, twilioPhoneNo, phoneNoToDial);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(`Error in calling ${phoneNoToDial}. Error: ${
+          e.response.data.error}`, 5000);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(
+          `Error in calling ${phoneNoToDial}. Error: ${e.message}`, 5000,
+        );
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Calling number ${phoneNoToDial}`, 5000);
-          await testCall(accountSid, authToken, twilioPhoneNo, phoneNoToDial);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Error in calling ${phoneNoToDial}. Error: ${
-                e.response.data.error
-              }`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // Error
-            ToastsStore.error(
-              `Error in calling ${phoneNoToDial}. Error: ${e.message}`, 5000,
-            );
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Test call
     </Button>
   );
@@ -349,32 +277,26 @@ function TestCallButton({
 function ConnectWithMongoButton({
   disabled, host, port, user, pass,
 }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info('Connecting with MongoDB.', 5000);
+      await pingMongoDB(host, port, user, pass);
+      ToastsStore.success('Connection successful', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Connection failed. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info('Connecting with MongoDB.', 5000);
-          await pingMongoDB(host, port, user, pass);
-          ToastsStore.success('Connection successful', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Connection failed. Error: ${e.response.data.error}`,
-              5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // Error
-            ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Connect with MongoDB
     </Button>
   );
@@ -383,65 +305,52 @@ function ConnectWithMongoButton({
 function ConnectWithRedisButton({
   disabled, host, port, password,
 }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info('Connecting with Redis.', 5000);
+      await pingRedis(host, port, password);
+      ToastsStore.success('Connection successful', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Connection failed. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an error
+        ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info('Connecting with Redis.', 5000);
-          await pingRedis(host, port, password);
-          ToastsStore.success('Connection successful', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Connection failed. Error: ${e.response.data.error}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // error
-            ToastsStore.error(
-              `Connection failed. Error: ${e.message}`, 5000,
-            );
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Connect with Redis
     </Button>
   );
 }
 
 function PingApiButton({ disabled, endpoint }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info(`Connecting with API at endpoint ${endpoint}.`, 5000);
+      await pingAPIServer(endpoint);
+      ToastsStore.success('Connection successful', 5000);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Connection failed. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <Button
-      className="button-style2"
-      disabled={disabled}
-      onClick={async () => {
-        try {
-          ToastsStore.info(`Connecting with API at endpoint ${
-            endpoint}.`, 5000);
-          await pingAPIServer(endpoint);
-          ToastsStore.success('Connection successful', 5000);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Connection failed. Error: ${e.response.data.error}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // Error
-            ToastsStore.error(`Connection failed. Error: ${e.message}`, 5000);
-          }
-        }
-      }
-      }
-    >
+    <Button className="button-style2" disabled={disabled} onClick={onClick}>
       Ping API
     </Button>
   );
@@ -450,70 +359,57 @@ function PingApiButton({ disabled, endpoint }) {
 function LoginButton({
   credentials, setAuthentication, handleSetCredentialsValid, handleSetValidated,
 }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info('Authenticating...', 2000);
+      await authenticate(credentials.username, credentials.password);
+      handleSetCredentialsValid(true);
+      await sleep(2000);
+      ToastsStore.success('Authentication successful', 2000);
+      setAuthentication(true);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Authentication failed. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Authentication failed. Error: ${e.message}`, 5000);
+      }
+      handleSetCredentialsValid(false);
+    }
+    handleSetValidated(true);
+  };
   return (
-    <Button
-      className="button-style2"
-      onClick={async () => {
-        try {
-          ToastsStore.info('Authenticating...', 2000);
-          await authenticate(credentials.username, credentials.password);
-          handleSetCredentialsValid(true);
-          await sleep(2000);
-          ToastsStore.success('Authentication successful', 2000);
-          setAuthentication(true);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Authentication failed. Error: ${e.response.data.error}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // Error
-            ToastsStore.error(`Authentication failed. Error: ${
-              e.message}`, 5000);
-          }
-          handleSetCredentialsValid(false);
-        }
-        handleSetValidated(true);
-      }
-      }
-    >
-      Login
-    </Button>
+    <Button className="button-style2" onClick={onClick}>Login</Button>
   );
 }
 
 function LogoutButton({ setAuthentication }) {
+  const onClick = async () => {
+    try {
+      ToastsStore.info('Logging out ...', 2000);
+      await terminateSession();
+      await sleep(2000);
+      ToastsStore.success('Logged out', 2000);
+      setAuthentication(false);
+    } catch (e) {
+      if (e.response) {
+        // The request was made and the server responded with a status code that
+        // falls out of the range of 2xx
+        ToastsStore.error(
+          `Could not log out. Error: ${e.response.data.error}`, 5000,
+        );
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        ToastsStore.error(`Could not log out. Error: ${e.message}`, 5000);
+      }
+    }
+  };
   return (
-    <button
-      className="logout-button-style"
-      onClick={async () => {
-        try {
-          ToastsStore.info('Logging out ...', 2000);
-          await terminateSession();
-          await sleep(2000);
-          ToastsStore.success('Logged out', 2000);
-          setAuthentication(false);
-        } catch (e) {
-          if (e.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            ToastsStore.error(
-              `Could not log out. Error: ${e.response.data.error}`, 5000,
-            );
-          } else {
-            // Something happened in setting up the request that triggered an
-            // Error
-            ToastsStore.error(`Could not log out. Error: ${
-              e.message}`, 5000);
-          }
-        }
-      }
-      }
-      type="button"
-    >
+    <button className="logout-button-style" onClick={onClick} type="button">
       Logout
     </button>
   );

@@ -1,6 +1,7 @@
 import hashlib
 import os
 from configparser import ConfigParser
+from getpass import getpass
 
 from src.utils.user_input import yn_prompt
 
@@ -49,7 +50,8 @@ def setup_authentication(cp: ConfigParser) -> None:
     cp['authentication']['cookie_secret'] = ''
 
     auth_username = input('Please insert a username \n')
-    auth_password = input('Please insert a password \n')
+    print('Please insert a password')
+    auth_password = getpass()
     salt = os.urandom(32)
     hashed_pass = hashlib.pbkdf2_hmac('sha256', auth_password.encode('utf-8'),
                                       salt, 100000)

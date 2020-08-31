@@ -65,11 +65,11 @@ function AuthenticationForm({
           <div>
             <Form.Text className="text-muted info-div-style">
               {'Please input the authentication credentials you have set for '
-              + 'the UI. If you have not set them up yet, the UI server has set'
-              + 'up a default random password which you can access from the '
-              + 'console. However, we suggest you set up your own username and '
-              + 'password as described in the doc. Do not forget to restart '
-              + 'the UI server afterwards!'}
+              + 'the UI. If you have not set them up yet, the UI server has '
+              + 'set up a default random password which you can access from '
+              + 'the console. However, we suggest you set up your own username '
+              + 'and password as described in the doc. Do not forget to '
+              + 'restart the UI server afterwards!'}
             </Form.Text>
             {createColumnForm(labels, columns)}
             <div className="div-content-centre-style">
