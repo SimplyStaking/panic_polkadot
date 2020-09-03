@@ -150,6 +150,7 @@ def setup_nodes(cp: ConfigParser, api_endpoint: str) -> None:
         section = 'node_' + str(i)
         cp.add_section(section)
         cp[section]['node_name'] = node.node_name
+        cp[section]['chain_name'] = node.chain_name
         cp[section]['node_ws_url'] = node.node_ws_url
         cp[section]['node_is_validator'] = str(node.node_is_validator)
         cp[section]['is_archive_node'] = str(node.is_archive_node)

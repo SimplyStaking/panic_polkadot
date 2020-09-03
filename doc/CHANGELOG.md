@@ -4,6 +4,14 @@
 
 <!--New features/improvements/fixes go here-->
 
+## 2.1.2
+
+Released on 3rd September 2020
+
+### Bug Fixes
+
+* (CLI Setup) The cli setup now writes the `chain_name` key for each node configuration inside the `user_config_nodes.ini` file as expected.
+
 ## 2.1.1
 
 Released on 31th August 2020
