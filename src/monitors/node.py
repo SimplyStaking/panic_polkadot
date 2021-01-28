@@ -307,17 +307,18 @@ class NodeMonitor(Monitor):
             self.data_source_indirect.ws_url)
         staking_validators = self.data_wrapper.get_derive_staking_validators(
             self.data_source_indirect.ws_url)
-        new_session_index = self.data_wrapper.get_current_index(
-            self.data_source_indirect.ws_url)
-        new_number_of_blocks_authored = self.data_wrapper. \
-            get_authored_blocks(self.data_source_indirect.ws_url,
-                                new_session_index,
-                                self.node.stash_account_address)
+        new_session_index = parse_int_from_string(str(
+            self.data_wrapper.get_current_index(
+                self.data_source_indirect.ws_url)))
+        new_number_of_blocks_authored = parse_int_from_string(str(
+            self.data_wrapper.get_authored_blocks(
+                self.data_source_indirect.ws_url, new_session_index,
+                self.node.stash_account_address)))
         disabled_validators = self.data_wrapper.get_disabled_validators(
             self.data_source_indirect.ws_url)
         active_era = self.data_wrapper.get_active_era(
             self.data_source_indirect.ws_url)
-        new_era_index = active_era['index']
+        new_era_index = parse_int_from_string(str(active_era['index']))
 
         # Set active
         is_active = self._node.stash_account_address in session_validators

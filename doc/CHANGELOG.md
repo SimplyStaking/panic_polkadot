@@ -4,6 +4,8 @@
 
 <!--New features/improvements/fixes go here-->
 
+* Fixed number of blocks authored, session index and era index parsing. Now the parsing takes in consideration values in hex.
+
 ## 2.1.2
 
 Released on 3rd September 2020
