@@ -12,6 +12,7 @@ from src.utils.config_parsers.internal import InternalConfig
 from src.utils.config_parsers.internal_parsed import InternalConf
 from src.utils.data_wrapper.polkadot_api import PolkadotApiWrapper
 from src.utils.exceptions import NoLiveNodeConnectedWithAnApiServerException
+from src.utils.parsing import parse_int_from_string
 
 
 class BlockchainMonitor(Monitor):
@@ -82,12 +83,14 @@ class BlockchainMonitor(Monitor):
 
     def monitor(self) -> None:
         # Get new data.
-        new_referendum_count = self._data_wrapper.get_referendum_count(
-            self.data_source.ws_url)
-        new_council_prop_count = self._data_wrapper.get_council_proposal_count(
-            self.data_source.ws_url)
-        new_public_prop_count = self._data_wrapper.get_public_proposal_count(
-            self.data_source.ws_url)
+        new_referendum_count = parse_int_from_string(str(
+            self._data_wrapper.get_referendum_count(self.data_source.ws_url)))
+        new_council_prop_count = parse_int_from_string(str(
+            self._data_wrapper.get_council_proposal_count(
+                self.data_source.ws_url)))
+        new_public_prop_count = parse_int_from_string(str(
+            self._data_wrapper.get_public_proposal_count(
+                self.data_source.ws_url)))
         session_validators = self._data_wrapper.get_session_validators(
             self.data_source.ws_url)
         new_validator_set_size = len(session_validators)

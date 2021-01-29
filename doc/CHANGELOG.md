@@ -9,7 +9,7 @@
 Released on 29th January 2021
 
 **Alerter**:
-* Fixed number of blocks authored, session index and era index parsing. Now the parsing takes in consideration values in hex.
+* Fixed number of blocks authored, session index, era index, proposal counts and referendum count parsing. Now the parsing takes in consideration values in hex.
 
 **UI**:
 * Updated third party libraries
