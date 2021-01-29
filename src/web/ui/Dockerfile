@@ -11,10 +11,10 @@ WORKDIR ./src/web/ui
 COPY ./src/web/ui ./
 
 # RUN npm install
-RUN npm ci --only=production
+RUN npm install
 
 # Build UI
-RUN npm run-script build --only=production
+RUN npm run-script build
 
 # Change directory to run the UI
 WORKDIR ../../../
