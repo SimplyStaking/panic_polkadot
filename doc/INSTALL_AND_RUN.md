@@ -217,7 +217,7 @@ docker-compose build ui
 
 The pre-built Docker image can simply be downloaded by running the following command:
 ```bash
-docker pull simplyvc/panic_polkadot_ui:2.1.2
+docker pull simplyvc/panic_polkadot_ui:2.1.3
 ```
 
 ##### Running the Docker Image
@@ -252,7 +252,7 @@ docker-compose build alerter
 
 The pre-built Docker image can simply be downloaded by running the following command:
 ```bash
-docker pull simplyvc/panic_polkadot:2.1.2
+docker pull simplyvc/panic_polkadot:2.1.3
 ```
 
 ##### Running the Docker Image

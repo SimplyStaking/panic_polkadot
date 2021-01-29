@@ -3,28 +3,16 @@
 To update an instance of PANIC to this version, run these commands inside the project directory:
 ```bash
 git fetch                # Fetch these changes
-git checkout v2.1.2      # Switch to this version
+git checkout v2.1.3      # Switch to this version
 
 # At this stage, you should stop the alerter and the UI
 
 pipenv sync              # Update dependencies
 ```
 
-If you have been using the CLI setup process to setup PANIC and a `KeyError: chain_name` error was being raised when running PANIC, we suggest re-setting the nodes part of the CLI setup process (Other parts can be skipped). This can be done by running the following:
+The next step is to make sure that you are running version 1.26.1 of the Polkadot API Server, this is important as otherwise PANIC won't be able to retrieve data.
 
-```bash
-pipenv run python run_alerter_setup.py  # use sudo in linux if necessary
-# If multiple versions of Python are installed, the python executable may be `python3.6`, `python3.7`, etc.
-```
-
-To make sure that the configs are valid, please run the following:
-
-```bash
-pipenv run python run_util_validate_configs.py  # use sudo in linux if necessary
-# If multiple versions of Python are installed, the python executable may be `python3.6`, `python3.7`, etc.
-```
-
-The next step is to follow one of the guides below depending on whether you were running PANIC from source, or using docker-compose.
+When you have done all of the above follow one of the guides below depending on whether you were running PANIC from source, or using docker-compose.
 
 ## Running from Source
 
@@ -74,7 +62,7 @@ docker-compose build ui
 
 The pre-built Docker image can simply be downloaded by running the following command:
 ```bash
-docker pull simplyvc/panic_polkadot_ui:2.1.2
+docker pull simplyvc/panic_polkadot_ui:2.1.3
 ```
 
 Run the UI docker image using this command:
@@ -97,7 +85,7 @@ docker-compose build alerter
 
 The pre-built Docker image can simply be downloaded by running the following command:
 ```bash
-docker pull simplyvc/panic_polkadot:2.1.2
+docker pull simplyvc/panic_polkadot:2.1.3
 ```
 
 Now that the Docker image is on your machine, you can run it as follow:
