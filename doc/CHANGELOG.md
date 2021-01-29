@@ -4,6 +4,18 @@
 
 <!--New features/improvements/fixes go here-->
 
+## 2.1.3
+
+Released on 29th January 2021
+
+**Alerter**:
+* Fixed number of blocks authored, session index and era index parsing. Now the parsing takes in consideration values in hex.
+
+**UI**:
+* Updated third party libraries
+
+PANIC is now compatible with version 1.26.1 of the Polkadot API Server.
+
 ## 2.1.2
 
 Released on 3rd September 2020
