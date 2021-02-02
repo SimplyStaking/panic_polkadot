@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-<!--New features/improvements/fixes go here-->
+* Fixed failing unit tests.
 
 ## 2.1.3
 

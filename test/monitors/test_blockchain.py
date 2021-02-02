@@ -240,9 +240,9 @@ class TestBlockchainMonitorWithoutRedis(unittest.TestCase):
             self.assertEqual(self.dummy_blockchain.validator_set_size,
                              2)
 
-    @patch(GET_REFERENDUM_COUNT_FUNCTION, return_value=None)
-    @patch(GET_COUNCIL_PROPOSAL_COUNT_FUNCTION, return_value=None)
-    @patch(GET_PUBLIC_PROPOSAL_COUNT_FUNCTION, return_value=None)
+    @patch(GET_REFERENDUM_COUNT_FUNCTION, return_value=0)
+    @patch(GET_COUNCIL_PROPOSAL_COUNT_FUNCTION, return_value=0)
+    @patch(GET_PUBLIC_PROPOSAL_COUNT_FUNCTION, return_value=0)
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_sets_API_as_up_if_entire_data_obtained_successfully(
             self, _1, _2, _3, _4) -> None:
@@ -254,9 +254,9 @@ class TestBlockchainMonitorWithoutRedis(unittest.TestCase):
             self.monitor.monitor()
             self.assertFalse(self.monitor.data_wrapper.is_api_down)
 
-    @patch(GET_REFERENDUM_COUNT_FUNCTION, return_value=None)
-    @patch(GET_COUNCIL_PROPOSAL_COUNT_FUNCTION, return_value=None)
-    @patch(GET_PUBLIC_PROPOSAL_COUNT_FUNCTION, return_value=None)
+    @patch(GET_REFERENDUM_COUNT_FUNCTION, return_value=0)
+    @patch(GET_COUNCIL_PROPOSAL_COUNT_FUNCTION, return_value=0)
+    @patch(GET_PUBLIC_PROPOSAL_COUNT_FUNCTION, return_value=0)
     @patch(GET_SESSION_VALIDATORS_FUNCTION, return_value=[])
     def test_monitor_connects_data_source_with_api_if_entire_data_obtained_successfully(
             self, _1, _2, _3, _4) -> None:
