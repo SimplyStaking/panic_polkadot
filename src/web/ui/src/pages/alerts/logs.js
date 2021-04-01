@@ -5,7 +5,7 @@ import Container from 'react-bootstrap/Container';
 import Table from 'react-bootstrap/Table';
 import moment from 'moment';
 import '@fortawesome/fontawesome-svg-core';
-import { ToastsStore } from 'react-toasts';
+import { toast } from 'react-toastify';
 import Alert from '../../components/alert';
 import { getAlerts } from '../../utils/data';
 import { MONGO_NOT_SET_UP } from '../../utils/error';
@@ -198,10 +198,10 @@ class AlertLogs extends Component {
           // If MongoDB not set up reset everything to default.
           this.setState({ alerts, totalPages: 1, isFetchingData: false });
         }
-        ToastsStore.error(`Error: ${e.response.data.error}`, 5000);
+        toast.error(`Error: ${e.response.data.error}`, { autoClose: 5000 });
       } else {
         // Something happened in setting up the request that triggered an Error
-        ToastsStore.error(`Error: ${e.message}`, 5000);
+        toast.error(`Error: ${e.message}`, { autoClose: 5000 });
       }
       return;
     }

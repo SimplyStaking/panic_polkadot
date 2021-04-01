@@ -962,7 +962,7 @@ class TestNodeMonitorWithoutRedis(unittest.TestCase):
     @patch(GET_ACTIVE_ERA_FUNCTION, return_value={"index": 0, "start": 0})
     @patch(GET_SESSION_VALIDATORS_FUNCTION)
     def test_monitor_indirect_validator_does_not_set_validator_blocks_authored_if_validator_not_active(
-            self, _1, _2, _3, _4, _5, mock_authored_blocks, _6, _7) -> None:
+            self, _1, _2, _3, _4, _5, _6, mock_authored_blocks, _7) -> None:
         with mock.patch(DATA_SOURCE_INDIRECT_PATH, new_callable=PropertyMock) \
                 as mock_data_source_indirect:
             mock_data_source_indirect.return_value = self.dummy_full_node_1
