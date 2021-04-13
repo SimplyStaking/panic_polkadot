@@ -4,11 +4,11 @@
 
 ## 2.2.0
 
-Released on _ April 2021
+Released on 13th April 2021
 
 * Fixed failing unit tests.
 * Fixed UI dependencies.
-* Now using react-toastify notifications
+* Now using react-toastify notifications.
 
 ## 2.1.3
 
