@@ -5,7 +5,7 @@ import Row from 'react-bootstrap/Row';
 import Table from 'react-bootstrap/Table';
 import PropTypes from 'prop-types';
 import { forbidExtraProps } from 'airbnb-prop-types';
-import { ToastsStore } from 'react-toasts';
+import { toast } from 'react-toastify';
 import moment from 'moment';
 import { getAllChainInfo, getChainNames } from '../utils/data';
 import {
@@ -252,10 +252,10 @@ class Dashboard extends Component {
       if (e.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
-        ToastsStore.error(`Error: ${e.response.data.error}`, 5000);
+        toast.error(`Error: ${e.response.data.error}`, { autoClose: 5000 });
       } else {
         // Something happened in setting up the request that triggered an Error
-        ToastsStore.error(`Error: ${e.message}`, 5000);
+        toast.error(`Error: ${e.message}`, { autoClose: 5000 });
       }
       return -1;
     }
@@ -265,11 +265,11 @@ class Dashboard extends Component {
     // already loaded, give an error message to the user.
     if (chainNames.length === 0) {
       if (state.chainNames.length !== 0) {
-        ToastsStore.error('The user_config_nodes.ini file must be '
+        toast.error('The user_config_nodes.ini file must be '
           + 'mis-configured as PANIC has no blockchains/nodes to '
           + 'monitor. Please solve this using the Settings->Nodes page and '
           + '(re)start PANIC if you want to continue using the dashboard',
-        5000);
+        { autoClose: 5000 });
       }
       return -1;
     }
@@ -282,11 +282,11 @@ class Dashboard extends Component {
         if (e.response) {
           // The request was made and the server responded with a status code
           // that falls out of the range of 2xx
-          ToastsStore.error(`Error: ${e.response.data.error}`, 5000);
+          toast.error(`Error: ${e.response.data.error}`, { autoClose: 5000 });
         } else {
           // Something happened in setting up the request that triggered an
           // error
-          ToastsStore.error(`Error: ${e.message}`, 5000);
+          toast.error(`Error: ${e.message}`, { autoClose: 5000 });
         }
       }
       return -1;

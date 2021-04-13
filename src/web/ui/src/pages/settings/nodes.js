@@ -3,7 +3,7 @@ import Container from 'react-bootstrap/Container';
 import Table from 'react-bootstrap/Table';
 import { forbidExtraProps } from 'airbnb-prop-types';
 import PropTypes from 'prop-types';
-import { ToastsStore } from 'react-toasts';
+import { toast } from 'react-toastify';
 import { getConfig } from '../../utils/data';
 import { nodesConfig } from '../../utils/templates';
 import { toBool } from '../../utils/string';
@@ -160,13 +160,13 @@ class NodesSettingsPage extends Component {
         // The request was made and the server responded
         // with a status code that falls out of the range of
         // 2xx
-        ToastsStore.error(
-          `Error: ${e.response.data.error}`, 5000,
+        toast.error(
+          `Error: ${e.response.data.error}`, { autoClose: 5000 },
         );
       } else {
         // Something happened in setting up the request that
         // triggered an Error
-        ToastsStore.error(`Error: ${e.message}`, 5000);
+        toast.error(`Error: ${e.message}`, { autoClose: 5000 });
       }
       return;
     }
