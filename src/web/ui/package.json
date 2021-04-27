@@ -32,7 +32,7 @@
     "react-router-dom": "^5.0.1",
     "react-scripts": "^4.0.1",
     "react-toastify": "^7.0.3",
-    "redis": "^3.0.2",
+    "redis": "^3.1.1",
     "session-file-store": "^1.4.0",
     "twilio": "^3.55.1"
   },
