@@ -4,11 +4,13 @@ from typing import Dict
 
 import requests
 
-from src.utils.exceptions import ApiCallFailedException, \
-    UnexpectedApiCallErrorException, NodeWasNotConnectedToApiServerException, \
-    UnexpectedApiErrorWhenReadingDataException, \
-    ConnectionWithNodeApiLostException, InvalidStashAccountAddressException, \
-    NodeIsNotAnArchiveNodeException
+from src.utils.exceptions import (ApiCallFailedException,
+                                  UnexpectedApiCallErrorException,
+                                  NodeWasNotConnectedToApiServerException,
+                                  UnexpectedApiErrorWhenReadingDataException,
+                                  ConnectionWithNodeApiLostException,
+                                  InvalidStashAccountAddressException,
+                                  NodeIsNotAnArchiveNodeException)
 
 
 def get_json(endpoint: str, logger: logging.Logger, params=None):
@@ -17,6 +19,7 @@ def get_json(endpoint: str, logger: logging.Logger, params=None):
     # The timeout must be slightly greater than the API timeout so that errors
     # could be received from the API.
     get_ret = requests.get(url=endpoint, params=params, timeout=15)
+    get_ret.close()
     logger.debug('get_json: get_ret: %s', get_ret)
     return json.loads(get_ret.content.decode('UTF-8'))
 

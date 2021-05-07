@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 2.3.0
+
+Released on 7th May 2021
+
+* (alerter) Updated dependencies.
+* (alerter) Fixed issue with persistent connections when retrieving data from the API Server.
+
 ## 2.2.0
 
 Released on 13th April 2021
