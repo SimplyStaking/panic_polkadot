@@ -8,6 +8,7 @@ Released on 7th May 2021
 
 * (alerter) Updated dependencies.
 * (alerter) Fixed issue with persistent connections when retrieving data from the API Server.
+* (UI) Fixed some security vulnerabilities for fixable dependencies.
 
 ## 2.2.0
 
