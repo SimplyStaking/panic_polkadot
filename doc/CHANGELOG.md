@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 2.4.0
+
+Released on 23rd July 2021
+
+* (UI) Dockerfile now uses node:14.
+* (UI) Fixed some security vulnerabilities.
+
 ## 2.3.0
 
 Released on 14th May 2021
