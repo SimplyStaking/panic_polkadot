@@ -28,7 +28,7 @@ services:
 
   alerter:
     build: .
-    image: 'simplyvc/panic_polkadot:2.3.0'
+    image: 'simplyvc/panic_polkadot:2.4.0'
     volumes:
       - './config:/opt/panic_polkadot/config'
       - './logs:/opt/panic_polkadot/logs'
