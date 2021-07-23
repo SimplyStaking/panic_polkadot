@@ -1,6 +1,6 @@
 {
   "name": "panic-polkadot-ui",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "UI in React for PANIC for Polkadot",
   "repository": {
     "type": "git",

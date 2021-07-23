@@ -3,14 +3,14 @@
 To update an instance of PANIC to this version, run these commands inside the project directory:
 ```bash
 git fetch                # Fetch these changes
-git checkout v2.3.0      # Switch to this version
+git checkout v2.4.0      # Switch to this version
 
 # At this stage, you should stop the alerter and the UI
 
 pipenv sync              # Update dependencies
 ```
 
-The next step is to make sure that you are running version 1.28.1 of the Polkadot API Server, this is important as otherwise PANIC won't be able to retrieve data.
+The next step is to make sure that you are running version 1.29.1 of the Polkadot API Server, this is important as otherwise PANIC won't be able to retrieve data.
 
 When you have done all of the above follow one of the guides below depending on whether you were running PANIC from source, or using docker-compose.
 
@@ -62,7 +62,7 @@ docker-compose build ui
 
 The pre-built Docker image can simply be downloaded by running the following command:
 ```bash
-docker pull simplyvc/panic_polkadot_ui:2.3.0
+docker pull simplyvc/panic_polkadot_ui:2.4.0
 ```
 
 Run the UI docker image using this command:
@@ -85,7 +85,7 @@ docker-compose build alerter
 
 The pre-built Docker image can simply be downloaded by running the following command:
 ```bash
-docker pull simplyvc/panic_polkadot:2.3.0
+docker pull simplyvc/panic_polkadot:2.4.0
 ```
 
 Now that the Docker image is on your machine, you can run it as follow:

@@ -5,7 +5,7 @@ services:
     build:
       context: './'
       dockerfile: './src/web/ui/Dockerfile'
-    image: 'simplyvc/panic_polkadot_ui:2.3.0'
+    image: 'simplyvc/panic_polkadot_ui:2.4.0'
     volumes:
       - './config:/opt/panic_polkadot/config'
       - './src/web/ui/sessions:/opt/panic_polkadot/src/web/ui/sessions'
