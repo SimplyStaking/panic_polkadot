@@ -1,5 +1,8 @@
 # PANIC for Polkadot
 
+
+> :warning: **This Repo has been archived. Substrate node monitoring and alerting has been integrated into [this product](https://github.com/SimplyVC/panic), which we now actively maintain.**
+
 <img src="doc/images/IMG_PANIC.png" alt="PANIC Logo"/>
 
 PANIC for [Polkadot](https://polkadot.network/) is a lightweight yet powerful open source monitoring and alerting solution for Polkadot nodes by [Simply VC](https://simply-vc.com.mt/). It is compatible with any [Substrate](https://www.parity.io/substrate/) based chain provided that it is injected with the default types (latest Polkadot and Substrate master types).
