@@ -17,7 +17,7 @@
     "axios": "^0.21.1",
     "bootstrap": "^4.4.1",
     "configparser": "^0.3.6",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-session": "^1.17.1",
     "font-awesome": "^4.7.0",
     "md5": "^2.2.1",
